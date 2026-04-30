@@ -44,6 +44,11 @@ def _init_extensions(app: Flask) -> None:
         # import semua models agar SQLAlchemy tahu tabel yang ada
         import app.models  # noqa: F401
         db.create_all()
+        
+        # Auto-seed if database is empty
+        from app.models.coin import Coin
+        if Coin.query.count() == 0:
+            _auto_seed(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -65,3 +70,88 @@ def _register_blueprints(app: Flask) -> None:
 def _init_scheduler(app: Flask) -> None:
     from app.jobs import init_scheduler
     init_scheduler(app)
+
+
+def _auto_seed(app: Flask) -> None:
+    """Auto-seed database if empty (for Railway deployment)."""
+    import json
+    import logging
+    from pathlib import Path
+    from datetime import datetime, timezone
+    from app.extensions import db, utcnow
+    from app.models.coin import Coin
+    from app.models.model_meta import ModelMeta
+    from app.models.model_selection import ModelSelection
+    
+    logger = logging.getLogger(__name__)
+    logger.info("[auto_seed] Database is empty, seeding...")
+    
+    # Load configs
+    models_dir = Path(__file__).parent.parent / "models"
+    registry_path = models_dir / "model_registry.json"
+    
+    if not registry_path.exists():
+        logger.warning("[auto_seed] model_registry.json not found, skipping seed")
+        return
+    
+    with open(registry_path) as f:
+        registry = json.load(f)
+    
+    version = registry["versions"][0]
+    run_id = version["run_id"]
+    
+    # Load inference config
+    config_path = models_dir / f"v{run_id}" / "inference_config.json"
+    if not config_path.exists():
+        config_path = models_dir / "inference_config.json"
+    
+    with open(config_path) as f:
+        inference_config = json.load(f)
+    
+    # Get coins to seed (recommended + acceptable + caution)
+    cv = inference_config.get("coins_validated", {})
+    symbols = list(dict.fromkeys(
+        cv.get("recommended", []) +
+        cv.get("acceptable", []) +
+        cv.get("caution", [])
+    ))
+    
+    if not symbols:
+        logger.warning("[auto_seed] No coins found in config, skipping seed")
+        return
+    
+    # Insert coins
+    for symbol in symbols:
+        coin = Coin(symbol=symbol, status="active")
+        db.session.add(coin)
+    db.session.flush()
+    
+    # Insert ModelMeta for each coin
+    trained_at = datetime.fromisoformat(version["trained_at"].replace("Z", "+00:00"))
+    backtest = version.get("backtest_summary", {})
+    paths = version.get("paths", {})
+    
+    for coin in Coin.query.all():
+        meta = ModelMeta(
+            coin_id=coin.id,
+            model_type="ensemble",
+            run_id=run_id,
+            win_rate=backtest.get("mean_winrate"),
+            max_drawdown=backtest.get("mean_drawdown_lev3x"),
+            n_features=version.get("n_features", 85),
+            model_path=paths.get("lstm"),
+            scaler_path=paths.get("scaler"),
+            meta_learner_path=paths.get("meta"),
+            calibrator_path=paths.get("calibrator"),
+            status="available",
+            trained_at=trained_at,
+        )
+        db.session.add(meta)
+        db.session.flush()
+        
+        # Insert ModelSelection
+        sel = ModelSelection(coin_id=coin.id, model_meta_id=meta.id)
+        db.session.add(sel)
+    
+    db.session.commit()
+    logger.info(f"[auto_seed] Seeded {len(symbols)} coins with model {run_id}")
