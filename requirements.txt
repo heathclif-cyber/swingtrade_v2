@@ -1,4 +1,7 @@
-# Pipeline deps (existing)
+# PyTorch CPU-only (smaller image for deployment)
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Pipeline deps
 pandas>=2.0
 numpy>=1.26
 pyarrow>=14.0
