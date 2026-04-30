@@ -100,8 +100,8 @@ def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
         logger.info(f"[{symbol}] features_df=None (cold start) — skip")
         return
 
-    # Inference — gunakan model_type dari selection, default "lstm"
-    model_type = getattr(sel, 'model_type', None) or "lstm"
+    # Inference — gunakan model_type dari ModelMeta (single source of truth)
+    model_type = meta.model_type or "lstm"
     svc = InferenceService(meta, run_id)
     result = svc.predict(symbol, features_df, model_type=model_type)
     if result is None:

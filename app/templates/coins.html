@@ -9,7 +9,7 @@
     <thead>
       <tr class="text-gray-500 text-xs border-b border-gray-800">
         <th class="px-4 py-3 text-left">Symbol</th>
-        <th class="px-4 py-3 text-left">Model Type</th>
+        <th class="px-4 py-3 text-left">Model</th>
         <th class="px-4 py-3 text-left">Run ID</th>
         <th class="px-4 py-3 text-right">Win Rate</th>
         <th class="px-4 py-3 text-right">Max DD</th>
@@ -26,15 +26,12 @@
             {{ coin.symbol }}
           </a>
         </td>
-        <td class="px-4 py-3">
-          <select class="bg-gray-800 text-gray-100 text-xs rounded px-2 py-1 border border-gray-700 focus:border-blue-500 focus:outline-none"
-                  onchange="updateModelType({{ coin.id }}, this.value)">
-            {% for mt in model_types %}
-            <option value="{{ mt }}" {% if sel and sel.model_type == mt %}selected{% elif not sel and mt == 'lstm' %}selected{% endif %}>
-              {{ mt }}
-            </option>
-            {% endfor %}
-          </select>
+        <td class="px-4 py-3 text-gray-300">
+          {% if meta %}
+            <a href="/models" class="text-blue-400 hover:underline">{{ meta.model_type }}</a>
+          {% else %}
+            <a href="/models" class="text-gray-500 hover:text-gray-400">—</a>
+          {% endif %}
         </td>
         <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ meta.run_id if meta else '—' }}</td>
         <td class="px-4 py-3 text-right">
@@ -67,26 +64,8 @@
   </table>
 </div>
 
-<script>
-function updateModelType(coinId, modelType) {
-  fetch(`/api/coins/${coinId}/model-type`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model_type: modelType })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      // Show brief success indicator
-      const select = event.target;
-      select.classList.add('border-green-500');
-      setTimeout(() => select.classList.remove('border-green-500'), 1000);
-    } else {
-      alert('Error: ' + data.error);
-    }
-  })
-  .catch(err => alert('Request failed: ' + err));
-}
-</script>
+<div class="mt-4 text-xs text-gray-500">
+  💡 To change model assignment, go to <a href="/models" class="text-blue-400 hover:underline">Models</a> page.
+</div>
 
 {% endblock %}
