@@ -49,6 +49,8 @@ def _init_extensions(app: Flask) -> None:
         from app.models.coin import Coin
         if Coin.query.count() == 0:
             _auto_seed(app)
+        else:
+            _update_model_meta(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -70,6 +72,66 @@ def _register_blueprints(app: Flask) -> None:
 def _init_scheduler(app: Flask) -> None:
     from app.jobs import init_scheduler
     init_scheduler(app)
+
+
+def _update_model_meta(app: Flask) -> None:
+    """Update existing model_meta records with per-coin data if missing."""
+    import json
+    import logging
+    from pathlib import Path
+    from app.extensions import db
+    from app.models.coin import Coin
+    from app.models.model_meta import ModelMeta
+    
+    logger = logging.getLogger(__name__)
+    
+    # Check if we need to update (if any total_trades is None)
+    needs_update = ModelMeta.query.filter(ModelMeta.total_trades.is_(None)).first()
+    if not needs_update:
+        return
+        
+    logger.info("[auto_seed] Updating missing per-coin model performance data...")
+    models_dir = Path(__file__).parent.parent / "models"
+    registry_path = models_dir / "model_registry.json"
+    
+    if not registry_path.exists():
+        return
+        
+    with open(registry_path) as f:
+        registry = json.load(f)
+        
+    version = registry["versions"][0]
+    run_id = version["run_id"]
+    
+    config_path = models_dir / f"v{run_id}" / "inference_config.json"
+    if not config_path.exists():
+        config_path = models_dir / "inference_config.json"
+        
+    if not config_path.exists():
+        return
+        
+    with open(config_path) as f:
+        inference_config = json.load(f)
+        
+    bs = inference_config.get("backtest_summary", {})
+    per_coin_data = inference_config.get("backtest_per_coin", {})
+    
+    updated = False
+    for meta in ModelMeta.query.filter_by(run_id=run_id).all():
+        coin = Coin.query.get(meta.coin_id)
+        if not coin:
+            continue
+            
+        per_coin = per_coin_data.get(coin.symbol, {})
+        if per_coin:
+            meta.win_rate = per_coin.get("winrate", meta.win_rate)
+            meta.total_trades = per_coin.get("total_trades", meta.total_trades)
+            meta.max_drawdown = per_coin.get("dd_lev3x", meta.max_drawdown)
+            updated = True
+            
+    if updated:
+        db.session.commit()
+        logger.info("[auto_seed] Model performance data updated successfully.")
 
 
 def _auto_seed(app: Flask) -> None:
