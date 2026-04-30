@@ -126,25 +126,32 @@ def _auto_seed(app: Flask) -> None:
         db.session.add(coin)
     db.session.flush()
     
-    # Insert ModelMeta for each coin
-    trained_at = datetime.fromisoformat(version["trained_at"].replace("Z", "+00:00"))
-    backtest = version.get("backtest_summary", {})
+    # Insert ModelMeta for each coin (with per-coin backtest data)
+    trained_at = datetime.fromisoformat(inference_config.get("created_at", "2026-04-25T17:02:50+00:00"))
+    bs = inference_config.get("backtest_summary", {})
+    per_coin_data = inference_config.get("backtest_per_coin", {})
     paths = version.get("paths", {})
     
     for coin in Coin.query.all():
+        # Get per-coin backtest data (fallback to global summary)
+        per_coin = per_coin_data.get(coin.symbol, {})
+        
         meta = ModelMeta(
             coin_id=coin.id,
             model_type="ensemble",
             run_id=run_id,
-            win_rate=backtest.get("mean_winrate"),
-            max_drawdown=backtest.get("mean_drawdown_lev3x"),
+            win_rate=per_coin.get("winrate", bs.get("mean_winrate")),
+            total_trades=per_coin.get("total_trades"),
+            max_drawdown=per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
             n_features=version.get("n_features", 85),
             model_path=paths.get("lstm"),
             scaler_path=paths.get("scaler"),
             meta_learner_path=paths.get("meta"),
             calibrator_path=paths.get("calibrator"),
+            inference_config_path=paths.get("inference_config"),
             status="available",
             trained_at=trained_at,
+            evaluated_at=trained_at,
         )
         db.session.add(meta)
         db.session.flush()
