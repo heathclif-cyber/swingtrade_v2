@@ -503,6 +503,13 @@ def calc_cvd_divergence(
       Rate of change CVD di H4, mengukur momentum smart money.
       Positif = net buying, negatif = net selling.
     """
+    # Ensure h4_cvd is aligned to h4_close index
+    if len(h4_cvd) != len(h4_close):
+        # Align h4_cvd to h4_close index via ffill
+        h4_cvd = h4_cvd.reindex(
+            h4_cvd.index.union(h4_close.index)
+        ).ffill().reindex(h4_close.index)
+    
     price_chg = h4_close.diff(window)
     cvd_chg   = h4_cvd.diff(window)
 
