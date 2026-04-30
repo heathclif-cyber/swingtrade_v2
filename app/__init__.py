@@ -19,7 +19,17 @@ def create_app() -> Flask:
 
 def _configure(app: Flask) -> None:
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///instance/app.db")
+    
+    # Database URL with fallback to SQLite
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+    else:
+        # Use absolute path for SQLite to avoid "unable to open database file"
+        db_path = os.path.join(os.getcwd(), "instance", "app.db")
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_size": 5,
         "max_overflow": 2,
