@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Trading Assistant{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    .badge-long  { @apply bg-green-900 text-green-300; }
+    .badge-short { @apply bg-red-900   text-red-300;   }
+    .badge-flat  { @apply bg-gray-700  text-gray-300;  }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen text-sm">
+
+  <!-- Navbar -->
+  <nav class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center gap-6 sticky top-0 z-10">
+    <span class="font-bold text-blue-400 text-base">Trading Assistant</span>
+    <a href="/dashboard"      class="text-gray-400 hover:text-white transition {% if request.path == '/dashboard' or request.path == '/' %}text-white font-medium{% endif %}">Dashboard</a>
+    <a href="/coins"          class="text-gray-400 hover:text-white transition {% if '/coins' in request.path %}text-white font-medium{% endif %}">Coins</a>
+    <a href="/paper/signals"  class="text-gray-400 hover:text-white transition {% if '/signals' in request.path %}text-white font-medium{% endif %}">Signals</a>
+    <a href="/paper/trades"   class="text-gray-400 hover:text-white transition {% if '/trades' in request.path %}text-white font-medium{% endif %}">Trades</a>
+    <a href="/models"         class="text-gray-400 hover:text-white transition {% if '/models' in request.path %}text-white font-medium{% endif %}">Models</a>
+    <span class="ml-auto text-xs text-gray-600">
+      <a href="/api/health" target="_blank" class="hover:text-gray-400">health</a>
+    </span>
+  </nav>
+
+  <main class="px-6 py-6 max-w-7xl mx-auto">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

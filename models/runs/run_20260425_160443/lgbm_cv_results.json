@@ -1,0 +1,351 @@
+{
+  "run_id": "run_20260425_160443",
+  "coins": [
+    "SOLUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "TONUSDT",
+    "ADAUSDT",
+    "TRXUSDT",
+    "1000SHIBUSDT",
+    "AVAXUSDT",
+    "LINKUSDT",
+    "DOTUSDT",
+    "SUIUSDT",
+    "POLUSDT",
+    "NEARUSDT",
+    "1000PEPEUSDT",
+    "TAOUSDT",
+    "ARBUSDT"
+  ],
+  "n_folds": 8,
+  "gap_bars": 24,
+  "best_fold": 1,
+  "best_f1_macro": 0.6486,
+  "mean_f1_macro": 0.62,
+  "std_f1_macro": 0.0146,
+  "mean_accuracy": 0.7715,
+  "lgbm_params": {
+    "objective": "multiclass",
+    "num_class": 3,
+    "n_estimators": 1000,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "num_leaves": 31,
+    "min_child_samples": 50,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "verbose": -1,
+    "n_jobs": -1,
+    "random_state": 42
+  },
+  "feature_cols": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "volume_delta",
+    "cvd",
+    "buy_volume",
+    "sell_volume",
+    "MSB_BOS",
+    "CHoCH",
+    "bars_since_BOS",
+    "FVG_up",
+    "FVG_down",
+    "Buy_Liq",
+    "Sell_Liq",
+    "SFP_sweep",
+    "open_interest",
+    "funding_rate",
+    "ema_7_h1",
+    "ema_21_h1",
+    "ema_50_h1",
+    "ema_200_h1",
+    "ema_7_h4",
+    "ema_21_h4",
+    "ema_50_h4",
+    "ema_200_h4",
+    "rsi_6",
+    "stochrsi_k",
+    "stochrsi_d",
+    "atr_14_h1",
+    "atr_14_h4",
+    "PDH",
+    "PDL",
+    "PWH",
+    "PWL",
+    "Fib_618",
+    "Fib_786",
+    "POC",
+    "VAH",
+    "VAL",
+    "btc_dominance",
+    "fear_greed",
+    "market_session",
+    "log_ret_1",
+    "log_ret_5",
+    "log_ret_20",
+    "vol_ratio_20",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "time_to_funding_norm",
+    "long_short_ratio",
+    "symbol",
+    "dist_swing_high",
+    "dist_swing_low",
+    "price_in_range",
+    "swing_momentum",
+    "h4_trend",
+    "trend_strength",
+    "vol_regime",
+    "cvd_div_h4",
+    "cvd_slope_h4",
+    "vol_efficiency",
+    "absorption_z",
+    "funding_price_div",
+    "rsi_h4",
+    "rsi_divergence",
+    "wyckoff_phase",
+    "spring_upthrust"
+  ],
+  "folds": [
+    {
+      "fold": 1,
+      "n_train": 43216,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.8272,
+      "f1_macro": 0.6486,
+      "f1_weighted": 0.8359,
+      "f1_SHORT": 0.5333,
+      "f1_FLAT": 0.8945,
+      "f1_LONG": 0.5181,
+      "confusion_matrix": [
+        [
+          2137,
+          1381,
+          0
+        ],
+        [
+          2352,
+          31620,
+          2396
+        ],
+        [
+          7,
+          1333,
+          2008
+        ]
+      ]
+    },
+    {
+      "fold": 2,
+      "n_train": 86450,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7915,
+      "f1_macro": 0.6384,
+      "f1_weighted": 0.8084,
+      "f1_SHORT": 0.5445,
+      "f1_FLAT": 0.8667,
+      "f1_LONG": 0.5039,
+      "confusion_matrix": [
+        [
+          2722,
+          1318,
+          8
+        ],
+        [
+          3213,
+          29223,
+          3398
+        ],
+        [
+          15,
+          1061,
+          2276
+        ]
+      ]
+    },
+    {
+      "fold": 3,
+      "n_train": 129684,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7617,
+      "f1_macro": 0.6029,
+      "f1_weighted": 0.7874,
+      "f1_SHORT": 0.5061,
+      "f1_FLAT": 0.8452,
+      "f1_LONG": 0.4574,
+      "confusion_matrix": [
+        [
+          3055,
+          989,
+          17
+        ],
+        [
+          4939,
+          28032,
+          3306
+        ],
+        [
+          18,
+          1034,
+          1844
+        ]
+      ]
+    },
+    {
+      "fold": 4,
+      "n_train": 172918,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7623,
+      "f1_macro": 0.6148,
+      "f1_weighted": 0.7886,
+      "f1_SHORT": 0.4989,
+      "f1_FLAT": 0.8444,
+      "f1_LONG": 0.5011,
+      "confusion_matrix": [
+        [
+          2849,
+          894,
+          12
+        ],
+        [
+          4799,
+          27804,
+          3624
+        ],
+        [
+          18,
+          931,
+          2303
+        ]
+      ]
+    },
+    {
+      "fold": 5,
+      "n_train": 216152,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.76,
+      "f1_macro": 0.6135,
+      "f1_weighted": 0.788,
+      "f1_SHORT": 0.5167,
+      "f1_FLAT": 0.8424,
+      "f1_LONG": 0.4814,
+      "confusion_matrix": [
+        [
+          2697,
+          1197,
+          19
+        ],
+        [
+          3820,
+          27671,
+          4836
+        ],
+        [
+          9,
+          497,
+          2488
+        ]
+      ]
+    },
+    {
+      "fold": 6,
+      "n_train": 259386,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7602,
+      "f1_macro": 0.6128,
+      "f1_weighted": 0.7914,
+      "f1_SHORT": 0.5158,
+      "f1_FLAT": 0.8427,
+      "f1_LONG": 0.4799,
+      "confusion_matrix": [
+        [
+          2846,
+          775,
+          14
+        ],
+        [
+          4542,
+          27691,
+          4530
+        ],
+        [
+          12,
+          494,
+          2330
+        ]
+      ]
+    },
+    {
+      "fold": 7,
+      "n_train": 302620,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7452,
+      "f1_macro": 0.6084,
+      "f1_weighted": 0.7783,
+      "f1_SHORT": 0.5047,
+      "f1_FLAT": 0.8295,
+      "f1_LONG": 0.491,
+      "confusion_matrix": [
+        [
+          2916,
+          528,
+          13
+        ],
+        [
+          5166,
+          26734,
+          4656
+        ],
+        [
+          16,
+          638,
+          2567
+        ]
+      ]
+    },
+    {
+      "fold": 8,
+      "n_train": 345854,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7642,
+      "f1_macro": 0.6203,
+      "f1_weighted": 0.7959,
+      "f1_SHORT": 0.531,
+      "f1_FLAT": 0.8452,
+      "f1_LONG": 0.4847,
+      "confusion_matrix": [
+        [
+          2829,
+          637,
+          21
+        ],
+        [
+          4330,
+          27751,
+          4788
+        ],
+        [
+          9,
+          410,
+          2459
+        ]
+      ]
+    }
+  ]
+}

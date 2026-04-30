@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python deploy/prepare_deploy.py --dry-run)",
+      "Bash(python deploy/prepare_deploy.py)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "Bash(python deploy/seed_db.py)",
+      "Bash(python -m deploy.seed_db)",
+      "Bash(python -c \"import apscheduler; print\\(apscheduler.__version__\\)\")",
+      "Bash(curl -s http://localhost:5001/api/health)",
+      "Bash(python -m json.tool)"
+    ]
+  }
+}

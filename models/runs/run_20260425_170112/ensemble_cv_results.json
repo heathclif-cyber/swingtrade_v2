@@ -1,0 +1,83 @@
+{
+  "run_id": "run_20260425_170112",
+  "coins": [
+    "SOLUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "TONUSDT",
+    "ADAUSDT",
+    "TRXUSDT",
+    "1000SHIBUSDT",
+    "AVAXUSDT",
+    "LINKUSDT",
+    "DOTUSDT",
+    "SUIUSDT",
+    "POLUSDT",
+    "NEARUSDT",
+    "1000PEPEUSDT",
+    "TAOUSDT",
+    "ARBUSDT"
+  ],
+  "mean_f1_macro": 0.7246,
+  "std_f1_macro": 0.0399,
+  "folds": [
+    {
+      "fold": 1,
+      "f1_macro": 0.7518,
+      "f1_SHORT": 0.6804,
+      "f1_FLAT": 0.9026,
+      "f1_LONG": 0.6725
+    },
+    {
+      "fold": 2,
+      "f1_macro": 0.7406,
+      "f1_SHORT": 0.6845,
+      "f1_FLAT": 0.8881,
+      "f1_LONG": 0.6491
+    },
+    {
+      "fold": 3,
+      "f1_macro": 0.7288,
+      "f1_SHORT": 0.6692,
+      "f1_FLAT": 0.8878,
+      "f1_LONG": 0.6294
+    },
+    {
+      "fold": 4,
+      "f1_macro": 0.7309,
+      "f1_SHORT": 0.659,
+      "f1_FLAT": 0.888,
+      "f1_LONG": 0.6458
+    },
+    {
+      "fold": 5,
+      "f1_macro": 0.7453,
+      "f1_SHORT": 0.677,
+      "f1_FLAT": 0.8986,
+      "f1_LONG": 0.6602
+    },
+    {
+      "fold": 6,
+      "f1_macro": 0.7391,
+      "f1_SHORT": 0.6683,
+      "f1_FLAT": 0.902,
+      "f1_LONG": 0.6471
+    },
+    {
+      "fold": 7,
+      "f1_macro": 0.7397,
+      "f1_SHORT": 0.6535,
+      "f1_FLAT": 0.8984,
+      "f1_LONG": 0.6673
+    },
+    {
+      "fold": 8,
+      "f1_macro": 0.6207,
+      "f1_SHORT": 0.5257,
+      "f1_FLAT": 0.8677,
+      "f1_LONG": 0.4687
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ coin.symbol }}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-3 mb-6">
+  <a href="/coins" class="text-gray-500 hover:text-gray-300">Coins</a>
+  <span class="text-gray-700">/</span>
+  <h1 class="text-xl font-bold font-mono">{{ coin.symbol }}</h1>
+  <span class="px-2 py-0.5 rounded text-xs bg-green-900 text-green-300">{{ coin.status }}</span>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Model info -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <p class="text-gray-500 text-xs mb-3">Active Model</p>
+    {% if meta %}
+    <p class="font-semibold">{{ meta.model_type | upper }}</p>
+    <p class="font-mono text-xs text-gray-500 mt-1">run: {{ meta.run_id }}</p>
+    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div>
+        <p class="text-gray-500">Win Rate</p>
+        <p class="text-green-400 font-medium">{{ '%.1f' | format((meta.win_rate or 0)*100) }}%</p>
+      </div>
+      <div>
+        <p class="text-gray-500">Max DD</p>
+        <p class="text-red-400 font-medium">{{ '%.1f' | format((meta.max_drawdown or 0)*100) }}%</p>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-gray-500">Belum ada model terpilih</p>
+    {% endif %}
+  </div>
+
+  <!-- Open position -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <p class="text-gray-500 text-xs mb-3">Open Position</p>
+    {% if open_trade %}
+    <span class="px-2 py-1 rounded font-bold text-sm
+      {% if open_trade.direction == 'LONG' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+      {{ open_trade.direction }}
+    </span>
+    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div><p class="text-gray-500">Entry</p><p class="font-mono">{{ '%.4f' | format(open_trade.entry_price) }}</p></div>
+      <div><p class="text-gray-500">Bars held</p><p>{{ open_trade.hold_bars or 0 }}</p></div>
+      <div><p class="text-gray-500">TP</p><p class="font-mono text-green-400">{{ '%.4f' | format(open_trade.tp_price or 0) }}</p></div>
+      <div><p class="text-gray-500">SL</p><p class="font-mono text-red-400">{{ '%.4f' | format(open_trade.sl_price or 0) }}</p></div>
+    </div>
+    <button
+      hx-post="/paper/trades/{{ open_trade.id }}/close"
+      hx-confirm="Tutup posisi ini?"
+      hx-swap="none"
+      hx-on::after-request="window.location.reload()"
+      class="mt-3 text-xs text-red-400 border border-red-800 rounded px-3 py-1 hover:bg-red-900/30">
+      Manual Close
+    </button>
+    {% else %}
+    <p class="text-gray-500">Tidak ada posisi terbuka</p>
+    {% endif %}
+  </div>
+
+  <!-- Performance -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <p class="text-gray-500 text-xs mb-3">Live Performance</p>
+    {% if perf %}
+    <div class="space-y-2">
+      {% for period, p in perf.items() %}
+      <div class="flex justify-between text-xs border-b border-gray-800 pb-2">
+        <span class="text-gray-400 w-10">{{ period }}</span>
+        <span>{{ p.total_trades or 0 }} trades</span>
+        <span class="{% if (p.win_rate or 0) >= 0.5 %}text-green-400{% else %}text-red-400{% endif %}">
+          {{ '%.0f' | format((p.win_rate or 0)*100) }}% WR
+        </span>
+        <span class="{% if (p.total_pnl or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {{ '%+.2f' | format(p.total_pnl or 0) }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500 text-xs">Belum ada data performa</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Recent Signals -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Recent Signals</h2>
+  {% if signals %}
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Time</th>
+        <th class="px-4 py-2 text-left">Dir</th>
+        <th class="px-4 py-2 text-right">Conf</th>
+        <th class="px-4 py-2 text-right">Entry</th>
+        <th class="px-4 py-2 text-right">TP</th>
+        <th class="px-4 py-2 text-right">SL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sig in signals %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 text-xs text-gray-500">{{ sig.signal_time.strftime('%m-%d %H:%M') if sig.signal_time else '—' }}</td>
+        <td class="px-4 py-2">
+          <span class="px-1.5 py-0.5 rounded text-xs
+            {% if sig.direction == 'LONG' %}bg-green-900 text-green-300
+            {% elif sig.direction == 'SHORT' %}bg-red-900 text-red-300
+            {% else %}bg-gray-700 text-gray-300{% endif %}">
+            {{ sig.direction }}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0)*100) }}%</td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
+          {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
+          {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="px-4 py-6 text-gray-500 text-center text-sm">Belum ada sinyal</p>
+  {% endif %}
+</div>
+
+<!-- Recent Closed Trades -->
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Recent Closed Trades</h2>
+  {% if recent_trades %}
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Closed</th>
+        <th class="px-4 py-2 text-left">Dir</th>
+        <th class="px-4 py-2 text-right">Entry</th>
+        <th class="px-4 py-2 text-right">Exit</th>
+        <th class="px-4 py-2 text-right">PnL</th>
+        <th class="px-4 py-2 text-left">Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in recent_trades %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 text-xs text-gray-500">{{ t.closed_at.strftime('%m-%d %H:%M') if t.closed_at else '—' }}</td>
+        <td class="px-4 py-2">
+          <span class="text-xs {% if t.direction == 'LONG' %}text-green-400{% else %}text-red-400{% endif %}">
+            {{ t.direction }}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(t.entry_price) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(t.exit_price or 0) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs font-medium
+          {% if (t.pnl_net or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {{ '%+.2f' | format(t.pnl_net or 0) }}
+        </td>
+        <td class="px-4 py-2 text-xs text-gray-500">{{ t.exit_reason or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="px-4 py-6 text-gray-500 text-center text-sm">Belum ada trade tertutup</p>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,365 @@
+{
+  "run_id": "run_20260425_163106",
+  "coins": [
+    "SOLUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "TONUSDT",
+    "ADAUSDT",
+    "TRXUSDT",
+    "1000SHIBUSDT",
+    "AVAXUSDT",
+    "LINKUSDT",
+    "DOTUSDT",
+    "SUIUSDT",
+    "POLUSDT",
+    "NEARUSDT",
+    "1000PEPEUSDT",
+    "TAOUSDT",
+    "ARBUSDT"
+  ],
+  "n_folds": 8,
+  "gap_bars": 24,
+  "best_fold": 1,
+  "best_f1_macro": 0.6483,
+  "mean_f1_macro": 0.6246,
+  "std_f1_macro": 0.0123,
+  "mean_accuracy": 0.7755,
+  "lgbm_params": {
+    "objective": "multiclass",
+    "num_class": 3,
+    "n_estimators": 1000,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "num_leaves": 31,
+    "min_child_samples": 50,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "verbose": -1,
+    "n_jobs": -1,
+    "random_state": 42
+  },
+  "feature_cols": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "volume_delta",
+    "cvd",
+    "buy_volume",
+    "sell_volume",
+    "MSB_BOS",
+    "CHoCH",
+    "bars_since_BOS",
+    "FVG_up",
+    "FVG_down",
+    "Buy_Liq",
+    "Sell_Liq",
+    "SFP_sweep",
+    "open_interest",
+    "funding_rate",
+    "ema_7_h1",
+    "ema_21_h1",
+    "ema_50_h1",
+    "ema_200_h1",
+    "ema_7_h4",
+    "ema_21_h4",
+    "ema_50_h4",
+    "ema_200_h4",
+    "rsi_6",
+    "stochrsi_k",
+    "stochrsi_d",
+    "atr_14_h1",
+    "atr_14_h4",
+    "PDH",
+    "PDL",
+    "PWH",
+    "PWL",
+    "Fib_618",
+    "Fib_786",
+    "POC",
+    "VAH",
+    "VAL",
+    "btc_dominance",
+    "fear_greed",
+    "market_session",
+    "log_ret_1",
+    "log_ret_5",
+    "log_ret_20",
+    "vol_ratio_20",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "time_to_funding_norm",
+    "long_short_ratio",
+    "symbol",
+    "dist_swing_high",
+    "dist_swing_low",
+    "price_in_range",
+    "swing_momentum",
+    "h4_trend",
+    "trend_strength",
+    "vol_regime",
+    "cvd_div_h4",
+    "cvd_slope_h4",
+    "vol_efficiency",
+    "absorption_z",
+    "funding_price_div",
+    "rsi_h4",
+    "rsi_divergence",
+    "wyckoff_phase",
+    "spring_upthrust",
+    "ofi_raw",
+    "ofi_acceleration",
+    "ofi_z_score",
+    "ofi_h4_delta",
+    "vwdp",
+    "vwdp_smooth",
+    "hidden_divergence",
+    "cvd_momentum_adv",
+    "absorption_at_swing",
+    "spread_to_volume",
+    "ultra_high_vol",
+    "no_demand",
+    "no_supply",
+    "effort_vs_result"
+  ],
+  "folds": [
+    {
+      "fold": 1,
+      "n_train": 43216,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.8275,
+      "f1_macro": 0.6483,
+      "f1_weighted": 0.836,
+      "f1_SHORT": 0.5382,
+      "f1_FLAT": 0.8947,
+      "f1_LONG": 0.512,
+      "confusion_matrix": [
+        [
+          2148,
+          1370,
+          0
+        ],
+        [
+          2309,
+          31644,
+          2415
+        ],
+        [
+          7,
+          1358,
+          1983
+        ]
+      ]
+    },
+    {
+      "fold": 2,
+      "n_train": 86450,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7948,
+      "f1_macro": 0.6412,
+      "f1_weighted": 0.8109,
+      "f1_SHORT": 0.5462,
+      "f1_FLAT": 0.8691,
+      "f1_LONG": 0.5085,
+      "confusion_matrix": [
+        [
+          2692,
+          1351,
+          5
+        ],
+        [
+          3105,
+          29389,
+          3340
+        ],
+        [
+          13,
+          1056,
+          2283
+        ]
+      ]
+    },
+    {
+      "fold": 3,
+      "n_train": 129684,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7657,
+      "f1_macro": 0.6107,
+      "f1_weighted": 0.791,
+      "f1_SHORT": 0.5115,
+      "f1_FLAT": 0.8477,
+      "f1_LONG": 0.4728,
+      "confusion_matrix": [
+        [
+          3120,
+          929,
+          12
+        ],
+        [
+          5002,
+          28104,
+          3171
+        ],
+        [
+          17,
+          997,
+          1882
+        ]
+      ]
+    },
+    {
+      "fold": 4,
+      "n_train": 172918,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7667,
+      "f1_macro": 0.619,
+      "f1_weighted": 0.7921,
+      "f1_SHORT": 0.5059,
+      "f1_FLAT": 0.8477,
+      "f1_LONG": 0.5032,
+      "confusion_matrix": [
+        [
+          2823,
+          922,
+          10
+        ],
+        [
+          4566,
+          27996,
+          3665
+        ],
+        [
+          16,
+          907,
+          2329
+        ]
+      ]
+    },
+    {
+      "fold": 5,
+      "n_train": 216152,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7638,
+      "f1_macro": 0.6204,
+      "f1_weighted": 0.7914,
+      "f1_SHORT": 0.5282,
+      "f1_FLAT": 0.8448,
+      "f1_LONG": 0.4882,
+      "confusion_matrix": [
+        [
+          2774,
+          1123,
+          16
+        ],
+        [
+          3812,
+          27731,
+          4784
+        ],
+        [
+          5,
+          472,
+          2517
+        ]
+      ]
+    },
+    {
+      "fold": 6,
+      "n_train": 259386,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7665,
+      "f1_macro": 0.6182,
+      "f1_weighted": 0.7964,
+      "f1_SHORT": 0.5219,
+      "f1_FLAT": 0.8475,
+      "f1_LONG": 0.4851,
+      "confusion_matrix": [
+        [
+          2842,
+          783,
+          10
+        ],
+        [
+          4399,
+          27986,
+          4378
+        ],
+        [
+          14,
+          509,
+          2313
+        ]
+      ]
+    },
+    {
+      "fold": 7,
+      "n_train": 302620,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7503,
+      "f1_macro": 0.6147,
+      "f1_weighted": 0.7827,
+      "f1_SHORT": 0.5121,
+      "f1_FLAT": 0.8333,
+      "f1_LONG": 0.4988,
+      "confusion_matrix": [
+        [
+          2933,
+          511,
+          13
+        ],
+        [
+          5046,
+          26901,
+          4609
+        ],
+        [
+          18,
+          597,
+          2606
+        ]
+      ]
+    },
+    {
+      "fold": 8,
+      "n_train": 345854,
+      "n_val": 43234,
+      "best_iteration": 1000,
+      "accuracy": 0.7684,
+      "f1_macro": 0.6246,
+      "f1_weighted": 0.7993,
+      "f1_SHORT": 0.5373,
+      "f1_FLAT": 0.8483,
+      "f1_LONG": 0.4881,
+      "confusion_matrix": [
+        [
+          2854,
+          614,
+          19
+        ],
+        [
+          4269,
+          27920,
+          4680
+        ],
+        [
+          13,
+          419,
+          2446
+        ]
+      ]
+    }
+  ]
+}

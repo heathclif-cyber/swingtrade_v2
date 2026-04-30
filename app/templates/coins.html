@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Coins{% endblock %}
+{% block content %}
+
+<h1 class="text-xl font-bold mb-6">Coins</h1>
+
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-3 text-left">Symbol</th>
+        <th class="px-4 py-3 text-left">Model</th>
+        <th class="px-4 py-3 text-left">Run ID</th>
+        <th class="px-4 py-3 text-right">Win Rate</th>
+        <th class="px-4 py-3 text-right">Max DD</th>
+        <th class="px-4 py-3 text-right">Trades</th>
+        <th class="px-4 py-3 text-left">Last Signal</th>
+        <th class="px-4 py-3 text-left">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for coin, meta in rows %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-3">
+          <a href="/coins/{{ coin.symbol }}" class="text-blue-400 hover:underline font-mono font-medium">
+            {{ coin.symbol }}
+          </a>
+        </td>
+        <td class="px-4 py-3 text-gray-300">{{ meta.model_type if meta else '—' }}</td>
+        <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ meta.run_id if meta else '—' }}</td>
+        <td class="px-4 py-3 text-right">
+          {% if meta and meta.win_rate %}
+            <span class="{% if meta.win_rate >= 0.7 %}text-green-400{% else %}text-yellow-400{% endif %}">
+              {{ '%.1f' | format(meta.win_rate * 100) }}%
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-red-400">
+          {% if meta and meta.max_drawdown %}{{ '%.1f' | format(meta.max_drawdown * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-400">
+          {{ meta.total_trades if meta and meta.total_trades else '—' }}
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-500">
+          {% if coin.last_signal_at %}
+            {{ coin.last_signal_at.strftime('%m-%d %H:%M') }}
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <span class="px-1.5 py-0.5 rounded text-xs
+            {% if coin.status == 'active' %}bg-green-900 text-green-300{% else %}bg-gray-700 text-gray-400{% endif %}">
+            {{ coin.status }}
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

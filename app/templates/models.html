@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Models{% endblock %}
+{% block content %}
+
+<h1 class="text-xl font-bold mb-6">Models</h1>
+
+<!-- Registry versions -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Registry Versions</h2>
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Run ID</th>
+        <th class="px-4 py-2 text-left">Type</th>
+        <th class="px-4 py-2 text-right">n_features</th>
+        <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-right">Max DD</th>
+        <th class="px-4 py-2 text-left">Trained At</th>
+        <th class="px-4 py-2 text-left">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in registry_versions %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 font-mono text-xs text-blue-400">{{ v.run_id }}</td>
+        <td class="px-4 py-2 text-gray-300">{{ v.model_type }}</td>
+        <td class="px-4 py-2 text-right">{{ v.n_features }}</td>
+        <td class="px-4 py-2 text-right text-green-400">
+          {% if v.backtest_summary %}{{ '%.1f' | format(v.backtest_summary.mean_winrate * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-red-400">
+          {% if v.backtest_summary %}{{ '%.1f' | format(v.backtest_summary.mean_drawdown_lev3x * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-xs text-gray-500">{{ v.trained_at }}</td>
+        <td class="px-4 py-2">
+          <span class="px-1.5 py-0.5 rounded text-xs
+            {% if v.status == 'active' %}bg-green-900 text-green-300
+            {% elif v.status == 'available' %}bg-blue-900 text-blue-300
+            {% else %}bg-gray-700 text-gray-400{% endif %}">
+            {{ v.status }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Tidak ada versi di registry</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Model Selection per Coin -->
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Active Model per Coin</h2>
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Coin</th>
+        <th class="px-4 py-2 text-left">Current Model</th>
+        <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-left">Selected At</th>
+        <th class="px-4 py-2 text-left">Ganti Model</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for coin, sel, meta in rows %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-3 font-mono text-xs font-medium">{{ coin.symbol }}</td>
+        <td class="px-4 py-3 text-xs text-gray-300">
+          {% if meta %}{{ meta.model_type }} / {{ meta.run_id }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-xs">
+          {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-500">
+          {% if sel %}{{ sel.selected_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3">
+          {% if available_metas %}
+          <div class="flex items-center gap-2">
+            <select id="sel-{{ coin.symbol }}" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs">
+              {% for m in available_metas | selectattr("coin_id", "equalto", coin.id) %}
+              <option value="{{ m.model_type }}|{{ m.run_id }}"
+                {% if sel and sel.model_meta_id == m.id %}selected{% endif %}>
+                {{ m.model_type }} / {{ m.run_id }}
+              </option>
+              {% endfor %}
+            </select>
+            <button
+              onclick="selectModel('{{ coin.symbol }}', document.getElementById('sel-{{ coin.symbol }}').value)"
+              class="text-xs bg-blue-700 hover:bg-blue-600 rounded px-2 py-1">
+              Pilih
+            </button>
+          </div>
+          {% else %}
+          <span class="text-xs text-gray-600">Tidak ada model tersedia</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function selectModel(symbol, val) {
+  const [model_type, run_id] = val.split('|');
+  fetch('/models/select', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({symbol, model_type, run_id}),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      alert(symbol + ': model diubah ke ' + model_type + ' / ' + run_id);
+      window.location.reload();
+    } else {
+      alert('Error: ' + (d.error || JSON.stringify(d)));
+    }
+  });
+}
+</script>
+
+{% endblock %}

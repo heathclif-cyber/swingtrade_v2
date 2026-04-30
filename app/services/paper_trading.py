@@ -1,0 +1,282 @@
+"""
+app/services/paper_trading.py — Engine paper trading incremental (bar per bar).
+
+Alur:
+  process_signal(signal_row, features_df) → buka posisi atau skip
+  check_open_positions()                  → cek TP/SL semua open trades
+
+TP/SL dihitung via calculate_tp_sl_swing() menggunakan H4 swing high/low.
+Fallback ke fixed ATR multiplier dari inference_config["fallback_tp_sl"].
+"""
+
+import logging
+import os
+from datetime import datetime, timezone
+from typing import Optional
+
+import numpy as np
+
+from app.extensions import db, utcnow
+from app.models.trade import Trade
+from app.models.coin import Coin
+from app.services.model_registry import load_inference_config
+
+logger = logging.getLogger(__name__)
+
+# ── Konstanta dari .env / inference_config ────────────────────────────────────
+SAME_DIR_COOLDOWN_HOURS = int(os.getenv("SAME_DIR_COOLDOWN_HOURS", 4))
+MAX_HOLDING_BARS        = int(os.getenv("MAX_HOLDING_BARS", 48))
+CONFIDENCE_THRESHOLD    = float(os.getenv("CONFIDENCE_THRESHOLD_ENTRY", 0.60))
+MODAL_PER_TRADE         = float(os.getenv("MODAL_PER_TRADE", 1000.0))
+LEVERAGE                = float(os.getenv("LEVERAGE_SIM", 3.0))
+FEE_PER_SIDE            = float(os.getenv("FEE_PER_SIDE", 0.0004))
+VCB_ENABLED             = os.getenv("VCB_ENABLED", "true").lower() == "true"
+VCB_LOOKBACK_BARS       = int(os.getenv("VCB_LOOKBACK_BARS", 24))
+VCB_ATR_MULTIPLIER      = float(os.getenv("VCB_ATR_MULTIPLIER", 2.5))
+
+# ── Swing labeling params (dari inference_config["fallback_tp_sl"]) ───────────
+SWING_MIN_RR  = 1.5
+SWING_MIN_TP  = 1.5   # × ATR
+SWING_MAX_SL  = 3.0   # × ATR
+
+
+class PaperTradingEngine:
+    def __init__(self, run_id: str):
+        self._config  = load_inference_config(run_id)
+        self._fallback = self._config.get("fallback_tp_sl", {})
+        self._risk     = self._config.get("risk", {})
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
+    def process_signal(self, signal_row, features_df) -> Optional[Trade]:
+        """
+        Buka posisi baru jika semua kondisi terpenuhi.
+        signal_row : ORM Signal instance
+        features_df: DataFrame dari data_service (ada h4_swing_high/low)
+        Return Trade atau None.
+        """
+        direction  = signal_row.direction
+        confidence = signal_row.confidence or 0.0
+        coin_id    = signal_row.coin_id
+        entry_price = signal_row.entry_price
+        atr         = signal_row.atr_at_signal or 0.0
+
+        # ── 1. Confidence check ───────────────────────────────────────────────
+        if confidence < CONFIDENCE_THRESHOLD:
+            logger.debug(f"[PT] Skip: confidence {confidence:.2f} < {CONFIDENCE_THRESHOLD}")
+            return None
+
+        # ── 2. FLAT → tidak buka posisi ───────────────────────────────────────
+        if direction not in ("LONG", "SHORT"):
+            return None
+
+        # ── 3. Cooldown: cek trade terakhir arah sama ─────────────────────────
+        if self._is_cooldown_active(coin_id, direction):
+            logger.info(f"[PT] Skip: cooldown aktif untuk {direction} coin_id={coin_id}")
+            return None
+
+        # ── 4. VCB (Volatility Circuit Breaker) ───────────────────────────────
+        if VCB_ENABLED and features_df is not None:
+            if self._circuit_breaker_active(features_df):
+                logger.info(f"[PT] Skip: VCB aktif coin_id={coin_id}")
+                return None
+
+        # ── 5. Sudah ada open position untuk coin ini ─────────────────────────
+        existing = Trade.query.filter_by(coin_id=coin_id, status="open").first()
+        if existing:
+            logger.debug(f"[PT] Skip: sudah ada open trade coin_id={coin_id}")
+            return None
+
+        # ── 6. Hitung TP/SL ───────────────────────────────────────────────────
+        last_row = features_df.iloc[-1] if features_df is not None else None
+        tp, sl = self._calculate_tp_sl(direction, entry_price, atr, last_row)
+        if tp is None or sl is None:
+            logger.warning(f"[PT] Skip: TP/SL tidak valid coin_id={coin_id}")
+            return None
+
+        # ── 7. Buka trade ──────────────────────────────────────────────────────
+        modal = self._risk.get("modal_per_trade", MODAL_PER_TRADE)
+        lev   = self._risk.get("leverage_recommended", LEVERAGE)
+        fee   = 2 * FEE_PER_SIDE * modal
+
+        trade = Trade(
+            signal_id   = signal_row.id,
+            coin_id     = coin_id,
+            direction   = direction,
+            entry_price = entry_price,
+            tp_price    = tp,
+            sl_price    = sl,
+            quantity    = modal,
+            leverage    = lev,
+            fee_total   = fee,
+            status      = "open",
+            opened_at   = utcnow(),
+            hold_bars   = 0,
+        )
+        db.session.add(trade)
+        db.session.commit()
+        logger.info(
+            f"[PT] OPEN {direction} coin_id={coin_id} entry={entry_price:.4f} "
+            f"TP={tp:.4f} SL={sl:.4f}"
+        )
+
+        # Kirim notifikasi Telegram
+        try:
+            from app.services.telegram import get_telegram_service
+            coin = Coin.query.get(coin_id)
+            symbol = coin.symbol if coin else f"coin_{coin_id}"
+            tg = get_telegram_service()
+            tg.send_trade_opened(trade, symbol)
+        except Exception as e:
+            logger.warning(f"[PT] Gagal kirim notifikasi Telegram: {e}")
+
+        return trade
+
+    def check_open_positions(self, current_candles: dict) -> list[Trade]:
+        """
+        Cek semua open trades terhadap current candle.
+        current_candles: {coin_id: {"high": float, "low": float, "close": float}}
+        Return list trade yang ditutup.
+        """
+        open_trades = Trade.query.filter_by(status="open").all()
+        closed = []
+
+        for trade in open_trades:
+            candle = current_candles.get(trade.coin_id)
+            if candle is None:
+                continue
+
+            high  = candle["high"]
+            low   = candle["low"]
+            close = candle["close"]
+
+            exit_price  = None
+            exit_reason = None
+
+            if trade.direction == "LONG":
+                if trade.tp_price and high >= trade.tp_price:
+                    exit_price, exit_reason = trade.tp_price, "tp_hit"
+                elif trade.sl_price and low <= trade.sl_price:
+                    exit_price, exit_reason = trade.sl_price, "sl_hit"
+            else:  # SHORT
+                if trade.tp_price and low <= trade.tp_price:
+                    exit_price, exit_reason = trade.tp_price, "tp_hit"
+                elif trade.sl_price and high >= trade.sl_price:
+                    exit_price, exit_reason = trade.sl_price, "sl_hit"
+
+            trade.hold_bars = (trade.hold_bars or 0) + 1
+            if exit_price is None and trade.hold_bars >= MAX_HOLDING_BARS:
+                exit_price, exit_reason = close, "time_exit"
+
+            if exit_price is not None:
+                self._close_trade(trade, exit_price, exit_reason)
+                closed.append(trade)
+
+        if closed:
+            db.session.commit()
+
+        return closed
+
+    # ── TP/SL calculation ─────────────────────────────────────────────────────
+
+    def _calculate_tp_sl(
+        self,
+        direction: str,
+        entry: float,
+        atr: float,
+        last_row,
+    ) -> tuple[Optional[float], Optional[float]]:
+        """Swing-based TP/SL. Fallback ke fixed ATR jika swing tidak valid."""
+        if last_row is not None and atr > 0:
+            sh = float(last_row.get("h4_swing_high", 0) or 0)
+            sl_lvl = float(last_row.get("h4_swing_low", 0) or 0)
+
+            if direction == "LONG" and sh > entry and sl_lvl < entry:
+                tp_dist = sh - entry
+                sl_dist = entry - sl_lvl
+                if (tp_dist >= SWING_MIN_TP * atr
+                        and sl_dist <= SWING_MAX_SL * atr
+                        and sl_dist > 0
+                        and tp_dist / sl_dist >= SWING_MIN_RR):
+                    return sh, sl_lvl
+
+            if direction == "SHORT" and sl_lvl < entry and sh > entry:
+                tp_dist = entry - sl_lvl
+                sl_dist = sh - entry
+                if (tp_dist >= SWING_MIN_TP * atr
+                        and sl_dist <= SWING_MAX_SL * atr
+                        and sl_dist > 0
+                        and tp_dist / sl_dist >= SWING_MIN_RR):
+                    return sl_lvl, sh
+
+        # Fallback ke fixed ATR
+        if atr <= 0:
+            return None, None
+        tp_mult = self._fallback.get("tp_atr_mult", 2.0)
+        sl_mult = self._fallback.get("sl_atr_mult", 1.0)
+        if direction == "LONG":
+            return entry + tp_mult * atr, entry - sl_mult * atr
+        else:
+            return entry - tp_mult * atr, entry + sl_mult * atr
+
+    # ── Circuit Breaker ───────────────────────────────────────────────────────
+
+    def _circuit_breaker_active(self, features_df) -> bool:
+        """True jika ATR current > VCB_ATR_MULTIPLIER × ATR mean (24 bars)."""
+        try:
+            atr_series = features_df["atr_14_h1"].dropna()
+            if len(atr_series) < VCB_LOOKBACK_BARS:
+                return False
+            recent   = atr_series.iloc[-VCB_LOOKBACK_BARS:]
+            atr_mean = recent.mean()
+            atr_now  = atr_series.iloc[-1]
+            return float(atr_now) > VCB_ATR_MULTIPLIER * float(atr_mean)
+        except Exception:
+            return False
+
+    # ── Cooldown check ────────────────────────────────────────────────────────
+
+    def _is_cooldown_active(self, coin_id: int, direction: str) -> bool:
+        from datetime import timedelta
+        cutoff = utcnow() - timedelta(hours=SAME_DIR_COOLDOWN_HOURS)
+        recent = Trade.query.filter(
+            Trade.coin_id   == coin_id,
+            Trade.direction == direction,
+            Trade.status    == "closed",
+            Trade.closed_at >= cutoff,
+        ).first()
+        return recent is not None
+
+    # ── PnL calculation ───────────────────────────────────────────────────────
+
+    def _close_trade(self, trade: Trade, exit_price: float, reason: str) -> None:
+        direction_sign = 1 if trade.direction == "LONG" else -1
+        qty = trade.quantity or MODAL_PER_TRADE
+        lev = trade.leverage or LEVERAGE
+
+        pnl_pct   = direction_sign * (exit_price - trade.entry_price) / trade.entry_price
+        pnl_gross = pnl_pct * qty * lev
+        pnl_net   = pnl_gross - (trade.fee_total or 0)
+
+        trade.exit_price  = exit_price
+        trade.exit_reason = reason
+        trade.pnl_gross   = round(pnl_gross, 4)
+        trade.pnl_net     = round(pnl_net, 4)
+        trade.pnl_pct     = round(pnl_pct * lev * 100, 2)
+        trade.status      = "closed"
+        trade.closed_at   = utcnow()
+
+        logger.info(
+            f"[PT] CLOSE {trade.direction} id={trade.id} "
+            f"reason={reason} pnl_net={pnl_net:.2f}"
+        )
+
+        # Kirim notifikasi Telegram
+        try:
+            from app.services.telegram import get_telegram_service
+            coin = Coin.query.get(trade.coin_id)
+            symbol = coin.symbol if coin else f"coin_{trade.coin_id}"
+            tg = get_telegram_service()
+            tg.send_trade_closed(trade, symbol)
+        except Exception as e:
+            logger.warning(f"[PT] Gagal kirim notifikasi Telegram: {e}")

@@ -1,0 +1,20 @@
+{
+  "symbol": "SOLUSDT",
+  "winrate": 0.68,
+  "total_trades": 4303,
+  "wins": 2926,
+  "losses": 1341,
+  "time_exits": 36,
+  "win_by_class": {
+    "LONG": 0.6783,
+    "SHORT": 0.6814
+  },
+  "trade_per_month": 110.53,
+  "max_consecutive_loss": 14,
+  "pnl_lev3x": 265990.825,
+  "max_drawdown_lev3x": 0.6683,
+  "total_fee_lev3x": 0,
+  "pnl_lev5x": 443318.04,
+  "max_drawdown_lev5x": 1.1139,
+  "total_fee_lev5x": 0
+}

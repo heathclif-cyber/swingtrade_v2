@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Signals{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold">Signals</h1>
+  <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" class="flex flex-wrap gap-3 mb-4">
+  <select name="symbol" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+    <option value="">Semua Coin</option>
+    {% for c in coins %}
+    <option value="{{ c.symbol }}" {% if c.symbol == symbol %}selected{% endif %}>{{ c.symbol }}</option>
+    {% endfor %}
+  </select>
+  <select name="direction" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+    <option value="">Semua Arah</option>
+    <option value="LONG"  {% if direction == 'LONG'  %}selected{% endif %}>LONG</option>
+    <option value="SHORT" {% if direction == 'SHORT' %}selected{% endif %}>SHORT</option>
+    <option value="FLAT"  {% if direction == 'FLAT'  %}selected{% endif %}>FLAT</option>
+  </select>
+  <button type="submit" class="bg-blue-700 hover:bg-blue-600 rounded px-4 py-1.5 text-sm">Filter</button>
+  <a href="/paper/signals" class="text-gray-500 hover:text-gray-300 text-sm py-1.5">Reset</a>
+</form>
+
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-3 text-left">Time</th>
+        <th class="px-4 py-3 text-left">Coin</th>
+        <th class="px-4 py-3 text-left">Dir</th>
+        <th class="px-4 py-3 text-right">Conf</th>
+        <th class="px-4 py-3 text-right">Entry</th>
+        <th class="px-4 py-3 text-right">TP</th>
+        <th class="px-4 py-3 text-right">SL</th>
+        <th class="px-4 py-3 text-right">ATR</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sig in pagination.items %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer"
+          onclick="fetch('/paper/signals/{{ sig.id }}').then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2)))">
+        <td class="px-4 py-2 text-xs text-gray-500">
+          {{ sig.signal_time.strftime('%m-%d %H:%M') if sig.signal_time else '—' }}
+        </td>
+        <td class="px-4 py-2">
+          <a href="/coins/{{ sig.coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs"
+             onclick="event.stopPropagation()">
+            {{ sig.coin.symbol }}
+          </a>
+        </td>
+        <td class="px-4 py-2">
+          <span class="px-1.5 py-0.5 rounded text-xs font-medium
+            {% if sig.direction == 'LONG' %}bg-green-900 text-green-300
+            {% elif sig.direction == 'SHORT' %}bg-red-900 text-red-300
+            {% else %}bg-gray-700 text-gray-300{% endif %}">
+            {{ sig.direction }}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0)*100) }}%</td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
+          {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
+          {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-xs text-gray-500">
+          {% if sig.atr_at_signal %}{{ '%.4f' | format(sig.atr_at_signal) }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="flex gap-2 mt-4 justify-center text-sm">
+  {% if pagination.has_prev %}
+  <a href="?page={{ pagination.prev_num }}&symbol={{ symbol }}&direction={{ direction }}"
+     class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Prev</a>
+  {% endif %}
+  <span class="px-3 py-1 text-gray-500">{{ pagination.page }} / {{ pagination.pages }}</span>
+  {% if pagination.has_next %}
+  <a href="?page={{ pagination.next_num }}&symbol={{ symbol }}&direction={{ direction }}"
+     class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Next</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

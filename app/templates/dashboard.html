@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold">Dashboard</h1>
+  <div class="flex items-center gap-2 text-xs">
+    {% if scheduler_ok %}
+      <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+      <span class="text-green-400">Scheduler aktif</span>
+    {% else %}
+      <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
+      <span class="text-red-400">Scheduler mati</span>
+    {% endif %}
+    <span class="text-gray-600 ml-2">RAM {{ memory.rss_mb }} MB / {{ memory.limit_mb }} MB ({{ memory.pct }}%)</span>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Active Coins</p>
+    <p class="text-2xl font-bold text-white">{{ active_coins }}</p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Open Trades</p>
+    <p class="text-2xl font-bold text-white">{{ open_trades | length }}</p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">30d PnL</p>
+    <p class="text-2xl font-bold {% if total_pnl_30d >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+      {{ '%+.2f' | format(total_pnl_30d) }}
+    </p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Avg Sharpe (30d)</p>
+    <p class="text-2xl font-bold text-white">{{ '%.2f' | format(avg_sharpe_30d) }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+  <!-- Latest Signals -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <h2 class="font-semibold">Latest Signals</h2>
+      <a href="/paper/signals" class="text-xs text-blue-400 hover:underline">Lihat semua</a>
+    </div>
+    {% if latest_signals %}
+    <table class="w-full">
+      <thead>
+        <tr class="text-gray-500 text-xs border-b border-gray-800">
+          <th class="px-4 py-2 text-left">Coin</th>
+          <th class="px-4 py-2 text-left">Dir</th>
+          <th class="px-4 py-2 text-right">Conf</th>
+          <th class="px-4 py-2 text-right">Entry</th>
+          <th class="px-4 py-2 text-right">TP</th>
+          <th class="px-4 py-2 text-right">SL</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sig in latest_signals %}
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+          <td class="px-4 py-2 font-mono text-xs">
+            <a href="/coins/{{ sig.coin.symbol }}" class="text-blue-400 hover:underline">{{ sig.coin.symbol }}</a>
+          </td>
+          <td class="px-4 py-2">
+            <span class="px-1.5 py-0.5 rounded text-xs font-medium
+              {% if sig.direction == 'LONG' %}bg-green-900 text-green-300
+              {% elif sig.direction == 'SHORT' %}bg-red-900 text-red-300
+              {% else %}bg-gray-700 text-gray-300{% endif %}">
+              {{ sig.direction }}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0) * 100) }}%</td>
+          <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
+          <td class="px-4 py-2 text-right font-mono text-green-400">
+            {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-right font-mono text-red-400">
+            {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="px-4 py-6 text-gray-500 text-center">Belum ada sinyal — menunggu job generate_signals...</p>
+    {% endif %}
+  </div>
+
+  <!-- Open Positions -->
+  <div class="bg-gray-900 rounded-lg border border-gray-800">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <h2 class="font-semibold">Open Positions</h2>
+      <a href="/paper/trades?status=open" class="text-xs text-blue-400 hover:underline">Lihat semua</a>
+    </div>
+    {% if open_trades %}
+    <table class="w-full">
+      <thead>
+        <tr class="text-gray-500 text-xs border-b border-gray-800">
+          <th class="px-4 py-2 text-left">Coin</th>
+          <th class="px-4 py-2 text-left">Dir</th>
+          <th class="px-4 py-2 text-right">Entry</th>
+          <th class="px-4 py-2 text-right">TP</th>
+          <th class="px-4 py-2 text-right">SL</th>
+          <th class="px-4 py-2 text-right">Bars</th>
+          <th class="px-4 py-2 text-right">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for trade in open_trades %}
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+          <td class="px-4 py-2 font-mono text-xs">
+            <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline">{{ trade.coin.symbol }}</a>
+          </td>
+          <td class="px-4 py-2">
+            <span class="px-1.5 py-0.5 rounded text-xs font-medium
+              {% if trade.direction == 'LONG' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+              {{ trade.direction }}
+            </span>
+          </td>
+          <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(trade.entry_price) }}</td>
+          <td class="px-4 py-2 text-right font-mono text-green-400">{{ '%.4f' | format(trade.tp_price or 0) }}</td>
+          <td class="px-4 py-2 text-right font-mono text-red-400">{{ '%.4f' | format(trade.sl_price or 0) }}</td>
+          <td class="px-4 py-2 text-right text-gray-400">{{ trade.hold_bars or 0 }}</td>
+          <td class="px-4 py-2 text-right">
+            <button
+              hx-post="/paper/trades/{{ trade.id }}/close"
+              hx-confirm="Tutup posisi {{ trade.direction }} {{ trade.coin.symbol }}?"
+              hx-swap="none"
+              hx-on::after-request="window.location.reload()"
+              class="text-xs text-red-400 hover:text-red-300 border border-red-800 hover:border-red-600 rounded px-2 py-0.5">
+              Close
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="px-4 py-6 text-gray-500 text-center">Tidak ada posisi terbuka</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Model Performance -->
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <div class="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+    <h2 class="font-semibold">Model Performance</h2>
+    <a href="/models" class="text-xs text-blue-400 hover:underline">Kelola model</a>
+  </div>
+  {% if model_rows %}
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Symbol</th>
+        <th class="px-4 py-2 text-left">Model</th>
+        <th class="px-4 py-2 text-left">Run ID</th>
+        <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-right">Max DD</th>
+        <th class="px-4 py-2 text-right">Trades</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for coin, meta in model_rows %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2">
+          <a href="/coins/{{ coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">{{ coin.symbol }}</a>
+        </td>
+        <td class="px-4 py-2 text-gray-300">{{ meta.model_type if meta else '—' }}</td>
+        <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ meta.run_id if meta else '—' }}</td>
+        <td class="px-4 py-2 text-right">
+          {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-red-400">
+          {% if meta and meta.max_drawdown %}{{ '%.1f' | format(meta.max_drawdown * 100) }}%{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-gray-400">
+          {{ meta.total_trades if meta and meta.total_trades else '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="px-4 py-6 text-gray-500 text-center">Belum ada data model</p>
+  {% endif %}
+</div>
+
+{% endblock %}

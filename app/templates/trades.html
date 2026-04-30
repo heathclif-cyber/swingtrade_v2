@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Trades{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold">Trades</h1>
+  <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Total Trades</p>
+    <p class="text-2xl font-bold">{{ summary.total_trades }}</p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Win Rate</p>
+    <p class="text-2xl font-bold {% if summary.win_rate >= 0.5 %}text-green-400{% else %}text-red-400{% endif %}">
+      {{ '%.1f' | format(summary.win_rate * 100) }}%
+    </p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Total PnL</p>
+    <p class="text-2xl font-bold {% if summary.total_pnl >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+      {{ '%+.2f' | format(summary.total_pnl) }}
+    </p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Profit Factor</p>
+    <p class="text-2xl font-bold">{{ '%.2f' | format(summary.profit_factor) }}</p>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<form method="GET" class="flex flex-wrap gap-3 mb-4">
+  <select name="symbol" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+    <option value="">Semua Coin</option>
+    {% for c in coins %}
+    <option value="{{ c.symbol }}" {% if c.symbol == symbol %}selected{% endif %}>{{ c.symbol }}</option>
+    {% endfor %}
+  </select>
+  <select name="status" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+    <option value="">Semua Status</option>
+    <option value="open"   {% if status == 'open'   %}selected{% endif %}>Open</option>
+    <option value="closed" {% if status == 'closed' %}selected{% endif %}>Closed</option>
+  </select>
+  <select name="direction" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+    <option value="">Semua Arah</option>
+    <option value="LONG"  {% if direction == 'LONG'  %}selected{% endif %}>LONG</option>
+    <option value="SHORT" {% if direction == 'SHORT' %}selected{% endif %}>SHORT</option>
+  </select>
+  <button type="submit" class="bg-blue-700 hover:bg-blue-600 rounded px-4 py-1.5 text-sm">Filter</button>
+  <a href="/paper/trades" class="text-gray-500 hover:text-gray-300 text-sm py-1.5">Reset</a>
+</form>
+
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-3 text-left">Opened</th>
+        <th class="px-4 py-3 text-left">Coin</th>
+        <th class="px-4 py-3 text-left">Dir</th>
+        <th class="px-4 py-3 text-right">Entry</th>
+        <th class="px-4 py-3 text-right">Exit</th>
+        <th class="px-4 py-3 text-right">PnL</th>
+        <th class="px-4 py-3 text-right">PnL %</th>
+        <th class="px-4 py-3 text-left">Reason</th>
+        <th class="px-4 py-3 text-left">Status</th>
+        <th class="px-4 py-3 text-right">Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for trade in pagination.items %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 text-xs text-gray-500">
+          {{ trade.opened_at.strftime('%m-%d %H:%M') if trade.opened_at else '—' }}
+        </td>
+        <td class="px-4 py-2">
+          <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">
+            {{ trade.coin.symbol }}
+          </a>
+        </td>
+        <td class="px-4 py-2">
+          <span class="text-xs font-medium {% if trade.direction == 'LONG' %}text-green-400{% else %}text-red-400{% endif %}">
+            {{ trade.direction }}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(trade.entry_price) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs">
+          {% if trade.exit_price %}{{ '%.4f' | format(trade.exit_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs font-medium
+          {% if trade.status == 'open' %}text-gray-400
+          {% elif (trade.pnl_net or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {% if trade.status == 'open' %}open{% else %}{{ '%+.2f' | format(trade.pnl_net or 0) }}{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-xs
+          {% if trade.status == 'open' %}text-gray-600
+          {% elif (trade.pnl_pct or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {% if trade.status != 'open' and trade.pnl_pct is not none %}
+            {{ '%+.1f' | format(trade.pnl_pct) }}%
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-xs text-gray-500">{{ trade.exit_reason or '—' }}</td>
+        <td class="px-4 py-2">
+          <span class="px-1.5 py-0.5 rounded text-xs
+            {% if trade.status == 'open' %}bg-yellow-900 text-yellow-300{% else %}bg-gray-700 text-gray-400{% endif %}">
+            {{ trade.status }}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-right">
+          {% if trade.status == 'open' %}
+          <button
+            hx-post="/paper/trades/{{ trade.id }}/close"
+            hx-confirm="Tutup posisi ini?"
+            hx-swap="none"
+            hx-on::after-request="window.location.reload()"
+            class="text-xs text-red-400 border border-red-800 rounded px-2 py-0.5 hover:bg-red-900/30">
+            Close
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="flex gap-2 mt-4 justify-center text-sm">
+  {% if pagination.has_prev %}
+  <a href="?page={{ pagination.prev_num }}&symbol={{ symbol }}&status={{ status }}&direction={{ direction }}"
+     class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Prev</a>
+  {% endif %}
+  <span class="px-3 py-1 text-gray-500">{{ pagination.page }} / {{ pagination.pages }}</span>
+  {% if pagination.has_next %}
+  <a href="?page={{ pagination.next_num }}&symbol={{ symbol }}&status={{ status }}&direction={{ direction }}"
+     class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Next</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
