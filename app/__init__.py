@@ -1,9 +1,17 @@
+import logging
 import os
+
 from flask import Flask
 from dotenv import load_dotenv
 from app.extensions import db
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 
 def create_app() -> Flask:

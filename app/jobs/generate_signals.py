@@ -83,30 +83,40 @@ def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
     if not sel:
         logger.warning(f"[{symbol}] Tidak ada ModelSelection — skip")
         return
+    logger.debug(f"[{symbol}] ModelSelection id={sel.id} → model_meta_id={sel.model_meta_id}")
 
     meta = ModelMeta.query.get(sel.model_meta_id)
     if not meta:
-        logger.warning(f"[{symbol}] ModelMeta tidak ditemukan — skip")
+        logger.warning(f"[{symbol}] ModelMeta id={sel.model_meta_id} tidak ditemukan — skip")
         return
+    logger.debug(f"[{symbol}] ModelMeta: type={meta.model_type!r} run_id={meta.run_id!r}")
 
     # Fetch + engineer features
+    logger.debug(f"[{symbol}] Mulai fetch features...")
     features_df = data_svc.prepare_latest_features(symbol)
     if features_df is None:
-        logger.info(f"[{symbol}] features_df=None (cold start) — skip")
+        logger.warning(f"[{symbol}] features_df=None — kemungkinan data Binance tidak cukup atau engineer_features gagal")
         return
+    logger.info(f"[{symbol}] Features OK: {features_df.shape[0]} bars × {features_df.shape[1]} cols")
 
     # Inference — gunakan model_type dari ModelMeta (single source of truth)
     model_type = meta.model_type or "lstm"
+    logger.debug(f"[{symbol}] Mulai inference model_type={model_type!r}...")
     svc = InferenceService(meta, run_id)
     result = svc.predict(symbol, features_df, model_type=model_type)
     if result is None:
-        logger.info(f"[{symbol}] predict=None — skip")
+        logger.warning(f"[{symbol}] predict=None — inference gagal atau exception (lihat log di atas)")
         return
 
     direction  = result["direction"]
     confidence = result["confidence"]
     entry      = result["entry_price"]
     atr        = result["atr_value"]
+    proba      = result.get("proba", [])
+    logger.info(
+        f"[{symbol}] Prediksi: direction={direction} conf={confidence:.4f} "
+        f"proba={[f'{p:.3f}' for p in proba]} entry={entry:.4f} atr={atr:.4f}"
+    )
 
     # Simpan Signal
     signal = Signal(
@@ -136,13 +146,22 @@ def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
 
     # Paper trading — buka posisi jika signal bukan FLAT
     if direction in ("LONG", "SHORT"):
+        logger.debug(f"[{symbol}] Mengirim ke PaperTradingEngine arah={direction}...")
         trade = engine.process_signal(signal, features_df)
         if trade:
             signal.tp_price = trade.tp_price
             signal.sl_price = trade.sl_price
+            logger.info(f"[{symbol}] Trade DIBUKA: tp={trade.tp_price:.4f} sl={trade.sl_price:.4f}")
+        else:
+            logger.warning(
+                f"[{symbol}] Trade TIDAK dibuka meski signal {direction} — "
+                f"cek: cooldown / VCB / TP-SL / posisi terbuka"
+            )
+    else:
+        logger.debug(f"[{symbol}] Signal FLAT — tidak ada trade")
 
     db.session.commit()
-    logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f}")
+    logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f} → tersimpan (id={signal.id})")
 
     # Kirim notifikasi Telegram untuk signal LONG/SHORT
     if direction in ("LONG", "SHORT"):
