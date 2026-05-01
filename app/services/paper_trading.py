@@ -10,7 +10,6 @@ Fallback ke fixed ATR multiplier dari inference_config["fallback_tp_sl"].
 """
 
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,25 +22,23 @@ from app.services.model_registry import load_inference_config
 
 logger = logging.getLogger(__name__)
 
-# ── Konstanta dari .env / inference_config ────────────────────────────────────
-SAME_DIR_COOLDOWN_HOURS = int(os.getenv("SAME_DIR_COOLDOWN_HOURS", 4))
-MAX_HOLDING_BARS        = int(os.getenv("MAX_HOLDING_BARS", 48))
-CONFIDENCE_THRESHOLD    = float(os.getenv("CONFIDENCE_THRESHOLD_ENTRY", 0.60))
-MODAL_PER_TRADE         = float(os.getenv("MODAL_PER_TRADE", 1000.0))
-LEVERAGE                = float(os.getenv("LEVERAGE_SIM", 3.0))
-FEE_PER_SIDE            = float(os.getenv("FEE_PER_SIDE", 0.0004))
-VCB_ENABLED             = os.getenv("VCB_ENABLED", "true").lower() == "true"
-VCB_LOOKBACK_BARS       = int(os.getenv("VCB_LOOKBACK_BARS", 24))
-VCB_ATR_MULTIPLIER      = float(os.getenv("VCB_ATR_MULTIPLIER", 2.5))
-
-# Konstanta SWING_MIN_RR dll telah dihapus karena kita memakai murni Swing H4.
-
-
 class PaperTradingEngine:
     def __init__(self, run_id: str):
         self._config  = load_inference_config(run_id)
         self._fallback = self._config.get("fallback_tp_sl", {})
-        self._risk     = self._config.get("risk", {})
+        inf  = self._config.get("inference", {})
+        risk = self._config.get("risk", {})
+        vcb  = self._config.get("vcb", {})
+
+        self._confidence_threshold  = inf.get("confidence_threshold_entry", 0.50)
+        self._max_holding_bars      = inf.get("max_hold_bars", 48)
+        self._modal_per_trade       = risk.get("modal_per_trade", 1000.0)
+        self._leverage              = risk.get("leverage_recommended", 3.0)
+        self._fee_per_side          = risk.get("fee_per_side", 0.0004)
+        self._same_dir_cooldown_hrs = self._config.get("same_dir_cooldown_hours", 4)
+        self._vcb_enabled           = vcb.get("enabled", True)
+        self._vcb_lookback_bars     = vcb.get("lookback_bars", 24)
+        self._vcb_atr_multiplier    = vcb.get("atr_multiplier", 2.5)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -59,8 +56,8 @@ class PaperTradingEngine:
         atr         = signal_row.atr_at_signal or 0.0
 
         # ── 1. Confidence check ───────────────────────────────────────────────
-        if confidence < CONFIDENCE_THRESHOLD:
-            logger.debug(f"[PT] Skip: confidence {confidence:.2f} < {CONFIDENCE_THRESHOLD}")
+        if confidence < self._confidence_threshold:
+            logger.debug(f"[PT] Skip: confidence {confidence:.2f} < {self._confidence_threshold}")
             return None
 
         # ── 2. FLAT → tidak buka posisi ───────────────────────────────────────
@@ -73,7 +70,7 @@ class PaperTradingEngine:
             return None
 
         # ── 4. VCB (Volatility Circuit Breaker) ───────────────────────────────
-        if VCB_ENABLED and features_df is not None:
+        if self._vcb_enabled and features_df is not None:
             if self._circuit_breaker_active(features_df):
                 logger.info(f"[PT] Skip: VCB aktif coin_id={coin_id}")
                 return None
@@ -92,9 +89,9 @@ class PaperTradingEngine:
             return None
 
         # ── 7. Buka trade ──────────────────────────────────────────────────────
-        modal = self._risk.get("modal_per_trade", MODAL_PER_TRADE)
-        lev   = self._risk.get("leverage_recommended", LEVERAGE)
-        fee   = 2 * FEE_PER_SIDE * modal
+        modal = self._modal_per_trade
+        lev   = self._leverage
+        fee   = 2 * self._fee_per_side * modal
 
         trade = Trade(
             signal_id   = signal_row.id,
@@ -162,7 +159,7 @@ class PaperTradingEngine:
                     exit_price, exit_reason = trade.sl_price, "sl_hit"
 
             trade.hold_bars = (trade.hold_bars or 0) + 1
-            if exit_price is None and trade.hold_bars >= MAX_HOLDING_BARS:
+            if exit_price is None and trade.hold_bars >= self._max_holding_bars:
                 exit_price, exit_reason = close, "time_exit"
 
             if exit_price is not None:
@@ -213,12 +210,12 @@ class PaperTradingEngine:
         """True jika ATR current > VCB_ATR_MULTIPLIER × ATR mean (24 bars)."""
         try:
             atr_series = features_df["atr_14_h1"].dropna()
-            if len(atr_series) < VCB_LOOKBACK_BARS:
+            if len(atr_series) < self._vcb_lookback_bars:
                 return False
-            recent   = atr_series.iloc[-VCB_LOOKBACK_BARS:]
+            recent   = atr_series.iloc[-self._vcb_lookback_bars:]
             atr_mean = recent.mean()
             atr_now  = atr_series.iloc[-1]
-            return float(atr_now) > VCB_ATR_MULTIPLIER * float(atr_mean)
+            return float(atr_now) > self._vcb_atr_multiplier * float(atr_mean)
         except Exception:
             return False
 
@@ -226,7 +223,7 @@ class PaperTradingEngine:
 
     def _is_cooldown_active(self, coin_id: int, direction: str) -> bool:
         from datetime import timedelta
-        cutoff = utcnow() - timedelta(hours=SAME_DIR_COOLDOWN_HOURS)
+        cutoff = utcnow() - timedelta(hours=self._same_dir_cooldown_hrs)
         recent = Trade.query.filter(
             Trade.coin_id   == coin_id,
             Trade.direction == direction,
@@ -239,8 +236,8 @@ class PaperTradingEngine:
 
     def _close_trade(self, trade: Trade, exit_price: float, reason: str) -> None:
         direction_sign = 1 if trade.direction == "LONG" else -1
-        qty = trade.quantity or MODAL_PER_TRADE
-        lev = trade.leverage or LEVERAGE
+        qty = trade.quantity or self._modal_per_trade
+        lev = trade.leverage or self._leverage
 
         pnl_pct   = direction_sign * (exit_price - trade.entry_price) / trade.entry_price
         pnl_gross = pnl_pct * qty * lev

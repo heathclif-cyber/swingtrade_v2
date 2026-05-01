@@ -175,7 +175,10 @@ def _ensure_model_variants(app: Flask) -> None:
     if not types_to_process:
         return
 
-    config_path = models_dir / "inference_config.json"
+    # Gunakan inference_config dari versi ensemble (atau versi pertama yang ada)
+    from app.services.model_registry import resolve_path
+    ref_version = versions_by_type.get("ensemble") or next(iter(versions_by_type.values()))
+    config_path = resolve_path(ref_version["paths"]["inference_config"])
     with open(config_path) as f:
         inference_config = json.load(f)
 
@@ -248,12 +251,11 @@ def _auto_seed(app: Flask) -> None:
     
     version = registry["versions"][0]
     run_id = version["run_id"]
-    
-    # Load inference config
-    config_path = models_dir / f"v{run_id}" / "inference_config.json"
-    if not config_path.exists():
-        config_path = models_dir / "inference_config.json"
-    
+
+    # Load inference config via registry path (bukan hardcoded)
+    from app.services.model_registry import resolve_path
+    config_path = resolve_path(version["paths"]["inference_config"])
+
     with open(config_path) as f:
         inference_config = json.load(f)
     

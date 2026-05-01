@@ -29,6 +29,17 @@
     "sl_atr_mult": 1.0,
     "max_holding_bars": 48
   },
+  "fallback_tp_sl": {
+    "tp_atr_mult": 2.0,
+    "sl_atr_mult": 1.0,
+    "max_holding_bars": 48
+  },
+  "same_dir_cooldown_hours": 4,
+  "vcb": {
+    "enabled": true,
+    "lookback_bars": 24,
+    "atr_multiplier": 2.5
+  },
   "risk": {
     "modal_per_trade": 1000.0,
     "leverage_recommended": 3.0,
