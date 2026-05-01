@@ -39,9 +39,10 @@ def _configure(app: Flask) -> None:
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
     
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_size": 5,
+        "pool_size": 3,           # kecil karena Neon pooler manage pool sendiri
         "max_overflow": 2,
-        "pool_pre_ping": True,   # handle Neon auto-suspend gracefully
+        "pool_pre_ping": True,    # handle Neon auto-suspend gracefully
+        "pool_reset_on_return": "rollback",  # kompatibel dengan PgBouncer transaction mode
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
