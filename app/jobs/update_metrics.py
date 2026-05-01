@@ -111,9 +111,9 @@ def _scan_new_models() -> None:
     from app.models.coin import Coin
     from app.models.model_meta import ModelMeta
     from app.services.model_registry import load_registry, resolve_path
-    from config import FEATURE_COLS_V3
+    from app.services.config_loader import get_n_features
 
-    N_FEATURES = len(FEATURE_COLS_V3)
+    N_FEATURES = get_n_features()
     versions = load_registry()
 
     for version in versions:

@@ -29,7 +29,8 @@ from requests.packages import urllib3  # type: ignore
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from config import FEATURE_COLS_V3, SYMBOL_MAP, LSTM_SEQ_LEN, BINANCE_BASE_URL
+from config import BINANCE_BASE_URL
+from app.services.config_loader import get_feature_cols, get_symbol_map, get_lstm_seq_len
 from core.binance_client import BinanceClient
 from core.features import engineer_features
 
@@ -157,16 +158,16 @@ class InferenceDataService:
 
     @staticmethod
     def prepare_lstm_input(df: pd.DataFrame, scaler) -> np.ndarray:
-        """
-        Scale FEATURE_COLS_V3 dan return sequence terakhir (1, LSTM_SEQ_LEN, 85).
-        """
-        X = df[FEATURE_COLS_V3].fillna(0).values
+        """Scale feature cols dan return sequence terakhir (1, seq_len, n_features)."""
+        feature_cols = get_feature_cols()
+        lstm_seq_len = get_lstm_seq_len()
+        X = df[feature_cols].fillna(0).values
         X_scaled = scaler.transform(X)
-        seq = X_scaled[-LSTM_SEQ_LEN:]
-        if len(seq) < LSTM_SEQ_LEN:
-            pad = np.zeros((LSTM_SEQ_LEN - len(seq), X_scaled.shape[1]))
+        seq = X_scaled[-lstm_seq_len:]
+        if len(seq) < lstm_seq_len:
+            pad = np.zeros((lstm_seq_len - len(seq), X_scaled.shape[1]))
             seq = np.vstack([pad, seq])
-        return seq[np.newaxis, :, :]  # (1, 32, 85)
+        return seq[np.newaxis, :, :]
 
     # ── internal ──────────────────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ class InferenceDataService:
             symbol=symbol, interval="1h",
             start_time_ms=start_1h, end_time_ms=now_ms, limit=n_bars
         )
-        if not raw_1h or len(raw_1h) < LSTM_SEQ_LEN + 10:
+        if not raw_1h or len(raw_1h) < get_lstm_seq_len() + 10:
             logger.warning(f"[{symbol}] 1h klines tidak cukup ({len(raw_1h or [])} bars)")
             return None
 
@@ -263,7 +264,7 @@ class InferenceDataService:
         df["fear_greed"]    = macro["fear_greed"]
 
         # ── engineer 85 fitur ────────────────────────────────────────────────
-        symbol_id = SYMBOL_MAP.get(symbol, 0)
+        symbol_id = get_symbol_map().get(symbol, 0)
         feat_df   = engineer_features(df, symbol=symbol, symbol_id=symbol_id, add_label=False)
 
         # ── long_short_ratio = 0 (by design — lihat arsitektur §5.2) ─────────
@@ -279,10 +280,11 @@ class InferenceDataService:
                     f"min={s.min():.4g} max={s.max():.4g} "
                     f"nan={feat_df[feat].isna().sum()}"
                 )
-        nan_rate = feat_df[FEATURE_COLS_V3].isna().mean().mean()
+        _feature_cols = get_feature_cols()
+        nan_rate = feat_df[_feature_cols].isna().mean().mean()
         if nan_rate > 0.10:
             top_nan = (
-                feat_df[FEATURE_COLS_V3].isna().mean()
+                feat_df[_feature_cols].isna().mean()
                 .pipe(lambda s: s[s > 0.10])
                 .sort_values(ascending=False)
                 .head(5)
@@ -293,12 +295,12 @@ class InferenceDataService:
             )
 
         # ── validasi kolom ────────────────────────────────────────────────────
-        missing = [c for c in FEATURE_COLS_V3 if c not in feat_df.columns]
+        missing = [c for c in get_feature_cols() if c not in feat_df.columns]
         if missing:
             logger.error(f"[{symbol}] Missing features: {missing}")
             return None
 
-        if len(feat_df) < LSTM_SEQ_LEN:
+        if len(feat_df) < get_lstm_seq_len():
             logger.warning(f"[{symbol}] Terlalu sedikit bars setelah engineering: {len(feat_df)}")
             return None
 

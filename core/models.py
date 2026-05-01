@@ -9,11 +9,21 @@ PENTING: Arsitektur TradingLSTM TIDAK BOLEH diubah tanpa retraining.
 
 import pickle
 from pathlib import Path
+from typing import Optional
 
 import torch
 import torch.nn as nn
 
-from config import FEATURE_COLS_V3
+
+def _default_n_features() -> int:
+    """Lazy: coba config_loader (web app), fallback ke config.py (training)."""
+    try:
+        from app.services.config_loader import get_n_features
+        return get_n_features()
+    except Exception:
+        from config import FEATURE_COLS_V3
+        return len(FEATURE_COLS_V3)
+
 
 # ─── TradingLSTM ─────────────────────────────────────────────────────────────
 
@@ -27,12 +37,14 @@ class TradingLSTM(nn.Module):
 
     def __init__(
         self,
-        n_features:  int   = len(FEATURE_COLS_V3),
+        n_features:  Optional[int] = None,
         hidden_size: int   = 128,
         num_layers:  int   = 2,
         dropout:     float = 0.3,
         num_classes: int   = 3,
     ):
+        if n_features is None:
+            n_features = _default_n_features()
         super().__init__()
         self.lstm = nn.LSTM(
             input_size    = n_features,
@@ -63,7 +75,7 @@ def save_lstm(model: TradingLSTM, path: Path) -> None:
 
 def load_lstm(
     path: Path,
-    n_features:  int   = len(FEATURE_COLS_V3),
+    n_features:  Optional[int] = None,
     hidden_size: int   = 128,
     num_layers:  int   = 2,
     dropout:     float = 0.3,

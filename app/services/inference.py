@@ -7,13 +7,11 @@ Mendukung tiga mode (dari inference_config.json):
   ensemble → LGBM + LSTM → MetaLearner → Calibrator
 
 Semua model di-lazy-load dan di-cache via TTLCache.
-Guard wajib: model_meta.n_features == len(FEATURE_COLS_V3) == 85.
+Guard wajib: model_meta.n_features == get_n_features() dari config_loader.
 """
 
 import gc
-import json
 import logging
-from pathlib import Path
 from typing import Optional
 
 import joblib
@@ -21,14 +19,14 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from config import FEATURE_COLS_V3, LABEL_MAP_INV
+from app.services.config_loader import get_feature_cols, get_label_map_inv, get_n_features
 from core.models import TradingLSTM, load_lstm, ProbabilityCalibrator
 from app.services.cache import model_cache
 from app.services.model_registry import resolve_path, load_inference_config
 
 logger = logging.getLogger(__name__)
 
-N_FEATURES = len(FEATURE_COLS_V3)  # must == 85
+N_FEATURES = get_n_features()
 
 
 # ─── Model bundle ────────────────────────────────────────────────────────────
@@ -77,7 +75,7 @@ class InferenceService:
             threshold = self._config.get("inference", {}).get("confidence_threshold_entry", 0.60)
             pred_idx  = int(np.argmax(proba))
             confidence = float(proba[pred_idx])
-            direction  = LABEL_MAP_INV[pred_idx]
+            direction  = get_label_map_inv()[pred_idx]
 
             logger.debug(
                 f"[{symbol}] proba raw: SHORT={proba[0]:.4f} FLAT={proba[1]:.4f} LONG={proba[2]:.4f} "
@@ -200,7 +198,7 @@ class InferenceService:
     def _lgbm_proba(self, df, bundle: _ModelBundle) -> np.ndarray:
         if bundle.lgbm is None:
             raise RuntimeError("LGBM tidak ter-load")
-        X = df[FEATURE_COLS_V3].fillna(0).iloc[[-1]]
+        X = df[get_feature_cols()].fillna(0).iloc[[-1]]
         return bundle.lgbm.predict_proba(X)[0]
 
     # ── Validation ────────────────────────────────────────────────────────────
@@ -209,7 +207,7 @@ class InferenceService:
         n = getattr(self._meta, "n_features", N_FEATURES)
         if n != N_FEATURES:
             raise ValueError(
-                f"n_features mismatch: model={n}, FEATURE_COLS_V3={N_FEATURES}. "
+                f"n_features mismatch: model={n}, config_loader={N_FEATURES}. "
                 f"Gunakan model yang ditraining dengan {N_FEATURES} fitur."
             )
 

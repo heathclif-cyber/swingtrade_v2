@@ -43,7 +43,7 @@ def select_model():
     from app.models.model_meta import ModelMeta
     from app.models.model_selection import ModelSelection
     from app.services.inference import InferenceService
-    from config import FEATURE_COLS_V3
+    from app.services.config_loader import get_n_features
 
     data       = request.get_json(force=True)
     symbol     = data.get("symbol")
@@ -64,9 +64,9 @@ def select_model():
         return jsonify({"error": f"ModelMeta tidak ditemukan untuk {symbol}/{model_type}/{run_id}"}), 404
 
     # Guard n_features
-    if meta.n_features != len(FEATURE_COLS_V3):
+    if meta.n_features != get_n_features():
         return jsonify({
-            "error": f"n_features mismatch: model={meta.n_features}, current={len(FEATURE_COLS_V3)}"
+            "error": f"n_features mismatch: model={meta.n_features}, current={get_n_features()}"
         }), 400
 
     # Update ModelSelection
