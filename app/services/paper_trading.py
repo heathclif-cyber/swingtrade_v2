@@ -23,8 +23,8 @@ from app.services.model_registry import load_inference_config
 logger = logging.getLogger(__name__)
 
 class PaperTradingEngine:
-    def __init__(self, run_id: str):
-        self._config  = load_inference_config(run_id)
+    def __init__(self):
+        self._config  = load_inference_config()
         self._fallback = self._config.get("fallback_tp_sl", {})
         inf  = self._config.get("inference", {})
         risk = self._config.get("risk", {})

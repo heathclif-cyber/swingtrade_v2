@@ -29,6 +29,8 @@ def load_configs():
     version = registry["versions"][0]
     run_id = version["run_id"]
     config_path = MODELS_DIR / f"v{run_id}" / "inference_config.json"
+    if not config_path.exists():
+        config_path = MODELS_DIR / "inference_config.json"
 
     with open(config_path) as f:
         inference_config = json.load(f)
@@ -45,10 +47,9 @@ def get_coins_to_seed(inference_config: dict) -> list[str]:
 
 def seed(dry_run: bool) -> None:
     version, inference_config = load_configs()
-    run_id = version["run_id"]
     symbols = get_coins_to_seed(inference_config)
 
-    print(f"[seed_db] run_id={run_id}")
+    print(f"[seed_db] model_type={version.get('model_type')}")
     print(f"[seed_db] Coins to seed: {symbols}")
 
     if dry_run:
@@ -84,16 +85,16 @@ def seed(dry_run: bool) -> None:
                 print(f"  [coin] SKIP {symbol} (sudah ada)")
 
             # Insert ModelMeta jika belum ada
+            model_type_val = version.get("model_type", "ensemble")
             meta = ModelMeta.query.filter_by(
-                coin_id=coin.id, model_type="ensemble", run_id=run_id
+                coin_id=coin.id, model_type=model_type_val
             ).first()
 
             if not meta:
                 per_coin = inference_config.get("backtest_per_coin", {}).get(symbol, {})
                 meta = ModelMeta(
                     coin_id=coin.id,
-                    model_type="ensemble",
-                    run_id=run_id,
+                    model_type=model_type_val,
                     win_rate=per_coin.get("winrate", bs.get("mean_winrate")),
                     total_trades=per_coin.get("total_trades"),
                     max_drawdown=per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
@@ -110,7 +111,7 @@ def seed(dry_run: bool) -> None:
                 db.session.add(meta)
                 db.session.flush()
                 inserted_metas += 1
-                print(f"  [meta] INSERT ModelMeta ensemble run={run_id} for {symbol}")
+                print(f"  [meta] INSERT ModelMeta {model_type_val} for {symbol}")
             else:
                 print(f"  [meta] SKIP ModelMeta (sudah ada) for {symbol}")
 

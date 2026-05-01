@@ -115,23 +115,20 @@ def _update_model_meta(app: Flask) -> None:
         registry = json.load(f)
         
     version = registry["versions"][0]
-    run_id = version["run_id"]
-    
-    config_path = models_dir / f"v{run_id}" / "inference_config.json"
-    if not config_path.exists():
-        config_path = models_dir / "inference_config.json"
-        
+
+    from app.services.model_registry import resolve_path
+    config_path = resolve_path(version["paths"]["inference_config"])
     if not config_path.exists():
         return
-        
+
     with open(config_path) as f:
         inference_config = json.load(f)
-        
+
     bs = inference_config.get("backtest_summary", {})
     per_coin_data = inference_config.get("backtest_per_coin", {})
-    
+
     updated = False
-    for meta in ModelMeta.query.filter_by(run_id=run_id).all():
+    for meta in ModelMeta.query.filter(ModelMeta.total_trades.is_(None)).all():
         coin = Coin.query.get(meta.coin_id)
         if not coin:
             continue
@@ -203,7 +200,6 @@ def _ensure_model_variants(app: Flask) -> None:
             meta = ModelMeta(
                 coin_id               = coin.id,
                 model_type            = vtype,
-                run_id                = v["run_id"],
                 win_rate              = per_coin.get("winrate",   bs.get("mean_winrate")),
                 total_trades          = per_coin.get("total_trades"),
                 max_drawdown          = per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
@@ -251,7 +247,6 @@ def _auto_seed(app: Flask) -> None:
         registry = json.load(f)
     
     version = registry["versions"][0]
-    run_id = version["run_id"]
 
     # Load inference config via registry path (bukan hardcoded)
     from app.services.model_registry import resolve_path
@@ -292,7 +287,6 @@ def _auto_seed(app: Flask) -> None:
         return ModelMeta(
             coin_id               = coin.id,
             model_type            = vtype,
-            run_id                = v.get("run_id", run_id),
             win_rate              = per_coin.get("winrate",     bs.get("mean_winrate")),
             total_trades          = per_coin.get("total_trades"),
             max_drawdown          = per_coin.get("dd_lev3x",   bs.get("mean_drawdown_lev3x")),

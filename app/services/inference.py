@@ -33,7 +33,7 @@ N_FEATURES = get_n_features()
 
 class _ModelBundle:
     """Container untuk semua model artifacts satu versi."""
-    __slots__ = ("lstm", "lgbm", "scaler", "meta", "calibrator", "inference_config", "run_id")
+    __slots__ = ("lstm", "lgbm", "scaler", "meta", "calibrator", "inference_config")
 
     def __init__(self, **kw):
         for k, v in kw.items():
@@ -43,14 +43,12 @@ class _ModelBundle:
 # ─── InferenceService ─────────────────────────────────────────────────────────
 
 class InferenceService:
-    def __init__(self, model_meta_row, run_id: str):
+    def __init__(self, model_meta_row):
         """
         model_meta_row : ORM ModelMeta instance (atau duck-typed dict)
-        run_id         : run_id string, e.g. "20260425_170250"
         """
         self._meta   = model_meta_row
-        self._run_id = run_id
-        self._config = load_inference_config(run_id)
+        self._config = load_inference_config()
         self._validate_n_features()
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -104,14 +102,13 @@ class InferenceService:
     # ── Model loading ─────────────────────────────────────────────────────────
 
     def _get_bundle(self, model_type: str) -> _ModelBundle:
-        cache_key = f"{model_type}_{self._run_id}"
-        bundle = model_cache.get(cache_key)
+        bundle = model_cache.get(model_type)
         if bundle is not None:
             return bundle
 
-        logger.info(f"[inference] Loading {model_type} model run={self._run_id}...")
+        logger.info(f"[inference] Loading {model_type} model...")
         bundle = self._load_bundle(model_type)
-        model_cache.put(cache_key, bundle)
+        model_cache.put(model_type, bundle)
         return bundle
 
     def _load_bundle(self, model_type: str) -> _ModelBundle:
@@ -153,7 +150,7 @@ class InferenceService:
         return _ModelBundle(
             lstm=lstm_model, lgbm=lgbm_model, scaler=scaler,
             meta=meta_learner, calibrator=calibrator,
-            inference_config=self._config, run_id=self._run_id,
+            inference_config=self._config,
         )
 
     # ── Model forward pass ────────────────────────────────────────────────────
@@ -212,11 +209,7 @@ class InferenceService:
             )
 
     @staticmethod
-    def clear_cache(run_id: str = None) -> None:
+    def clear_cache() -> None:
         """Clear model cache. Panggil saat model di-switch."""
-        if run_id:
-            for mt in ("lstm", "lgbm", "ensemble"):
-                model_cache.delete(f"{mt}_{run_id}")
-        else:
-            model_cache.clear()
+        model_cache.clear()
         gc.collect()

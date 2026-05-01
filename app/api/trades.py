@@ -89,7 +89,6 @@ def close_trade(trade_id: int):
     from app.extensions import db, utcnow
     from app.models.trade import Trade
     from app.models.coin import Coin
-    from app.services.model_registry import get_active_version
     from app.services.paper_trading import PaperTradingEngine
     from core.binance_client import BinanceClient
     import os, time
@@ -110,8 +109,7 @@ def close_trade(trade_id: int):
     )
     close_price = float(raw[-1][4]) if raw else trade.entry_price
 
-    version = get_active_version()
-    engine  = PaperTradingEngine(version["run_id"])
+    engine  = PaperTradingEngine()
     engine._close_trade(trade, close_price, "manual_close")
     db.session.commit()
 

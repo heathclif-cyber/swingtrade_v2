@@ -24,7 +24,7 @@ def models():
 
     available_metas = (
         ModelMeta.query.filter_by(status="available")
-        .order_by(ModelMeta.run_id.desc())
+        .order_by(ModelMeta.model_type)
         .all()
     )
 
@@ -48,20 +48,19 @@ def select_model():
     data       = request.get_json(force=True)
     symbol     = data.get("symbol")
     model_type = data.get("model_type", "ensemble")
-    run_id     = data.get("run_id")
 
-    if not symbol or not run_id:
-        return jsonify({"error": "symbol dan run_id wajib diisi"}), 400
+    if not symbol:
+        return jsonify({"error": "symbol wajib diisi"}), 400
 
     coin = Coin.query.filter_by(symbol=symbol).first()
     if not coin:
         return jsonify({"error": f"Coin {symbol} tidak ditemukan"}), 404
 
     meta = ModelMeta.query.filter_by(
-        coin_id=coin.id, model_type=model_type, run_id=run_id
+        coin_id=coin.id, model_type=model_type
     ).first()
     if not meta:
-        return jsonify({"error": f"ModelMeta tidak ditemukan untuk {symbol}/{model_type}/{run_id}"}), 404
+        return jsonify({"error": f"ModelMeta tidak ditemukan untuk {symbol}/{model_type}"}), 404
 
     # Guard n_features
     if meta.n_features != get_n_features():
@@ -81,21 +80,20 @@ def select_model():
     db.session.commit()
 
     # Clear cache model lama
-    InferenceService.clear_cache(run_id)
+    InferenceService.clear_cache()
 
     return jsonify({
         "status":     "ok",
         "symbol":     symbol,
         "model_type": model_type,
-        "run_id":     run_id,
     })
 
 
 @bp.post("/models/select-all")
 def select_all_models():
     """
-    Bulk update: ganti model SEMUA coin aktif ke model_type + run_id yang sama.
-    Body JSON: {"model_type": "lstm", "run_id": "20260425_170250"}
+    Bulk update: ganti model SEMUA coin aktif ke model_type yang sama.
+    Body JSON: {"model_type": "lstm"}
     """
     from app.extensions import db, utcnow
     from app.models.coin import Coin
@@ -106,10 +104,6 @@ def select_all_models():
 
     data       = request.get_json(force=True)
     model_type = data.get("model_type", "lstm")
-    run_id     = data.get("run_id")
-
-    if not run_id:
-        return jsonify({"error": "run_id wajib diisi"}), 400
 
     nf = get_n_features()
     coins = Coin.query.filter_by(status="active").all()
@@ -118,10 +112,10 @@ def select_all_models():
 
     for coin in coins:
         meta = ModelMeta.query.filter_by(
-            coin_id=coin.id, model_type=model_type, run_id=run_id
+            coin_id=coin.id, model_type=model_type
         ).first()
         if not meta:
-            errors.append(f"{coin.symbol}: ModelMeta {model_type}/{run_id} tidak ditemukan")
+            errors.append(f"{coin.symbol}: ModelMeta {model_type} tidak ditemukan")
             continue
         if meta.n_features != nf:
             errors.append(f"{coin.symbol}: n_features mismatch ({meta.n_features} vs {nf})")
@@ -137,14 +131,13 @@ def select_all_models():
         updated += 1
 
     db.session.commit()
-    InferenceService.clear_cache(run_id)
+    InferenceService.clear_cache()
 
     return jsonify({
         "status":     "ok",
         "updated":    updated,
         "total":      len(coins),
         "model_type": model_type,
-        "run_id":     run_id,
         "errors":     errors,
     })
 

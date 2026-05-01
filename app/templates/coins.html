@@ -10,7 +10,6 @@
       <tr class="text-gray-500 text-xs border-b border-gray-800">
         <th class="px-4 py-3 text-left">Symbol</th>
         <th class="px-4 py-3 text-left">Model</th>
-        <th class="px-4 py-3 text-left">Run ID</th>
         <th class="px-4 py-3 text-right">Win Rate</th>
         <th class="px-4 py-3 text-right">Max DD</th>
         <th class="px-4 py-3 text-right">Trades</th>
@@ -33,7 +32,6 @@
             <a href="/models" class="text-gray-500 hover:text-gray-400">—</a>
           {% endif %}
         </td>
-        <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ meta.run_id if meta else '—' }}</td>
         <td class="px-4 py-3 text-right">
           {% if meta and meta.win_rate %}
             <span class="{% if meta.win_rate >= 0.7 %}text-green-400{% else %}text-yellow-400{% endif %}">

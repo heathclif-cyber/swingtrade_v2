@@ -36,7 +36,6 @@ def run(app: Flask) -> None:
     with app.app_context():
         from app.models.trade import Trade
         from app.models.coin import Coin
-        from app.services.model_registry import get_active_version
         from app.services.paper_trading import PaperTradingEngine
         from core.binance_client import BinanceClient
         import os
@@ -60,12 +59,7 @@ def run(app: Flask) -> None:
                 current_candles[coin_id] = candle
             time.sleep(0.1)
 
-        version = get_active_version()
-        if not version:
-            logger.warning("[check_positions] Tidak ada versi model aktif")
-            return
-
-        engine  = PaperTradingEngine(version["run_id"])
+        engine  = PaperTradingEngine()
         closed  = engine.check_open_positions(current_candles)
 
         if closed:

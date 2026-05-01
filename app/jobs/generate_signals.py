@@ -27,21 +27,13 @@ def run(app: Flask) -> None:
         from app.services.data_service import InferenceDataService
         from app.services.inference import InferenceService
         from app.services.paper_trading import PaperTradingEngine
-        from app.services.model_registry import get_active_version, load_inference_config
+        from app.services.model_registry import get_active_version
         from app.services.memory import check_and_free
 
         check_and_free()
 
-        version = get_active_version()
-        if not version:
+        if not get_active_version():
             logger.error("[generate_signals] Tidak ada versi model aktif di registry")
-            return
-
-        run_id = version["run_id"]
-        try:
-            config = load_inference_config(run_id)
-        except Exception as e:
-            logger.error(f"[generate_signals] Gagal load inference_config: {e}")
             return
 
         # Ambil semua koin aktif — tidak hanya recommended
@@ -54,12 +46,12 @@ def run(app: Flask) -> None:
             return
 
         data_svc = InferenceDataService()
-        engine   = PaperTradingEngine(run_id)
+        engine   = PaperTradingEngine()
         ok = skip = fail = 0
 
         for coin in coins:
             try:
-                _process_coin(coin, run_id, data_svc, engine, db, utcnow,
+                _process_coin(coin, data_svc, engine, db, utcnow,
                               Signal, ModelMeta, ModelSelection)
                 ok += 1
             except Exception as e:
@@ -72,10 +64,10 @@ def run(app: Flask) -> None:
         logger.info(f"[generate_signals] Selesai: {ok} OK, {skip} skip, {fail} gagal / {len(coins)} koin")
 
 
-def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
+def _process_coin(coin, data_svc, engine, db, utcnow,
                   Signal, ModelMeta, ModelSelection):
     from app.services.inference import InferenceService  # Import di sini
-    
+
     symbol = coin.symbol
 
     # Ambil model_meta aktif untuk koin ini
@@ -89,7 +81,7 @@ def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
     if not meta:
         logger.warning(f"[{symbol}] ModelMeta id={sel.model_meta_id} tidak ditemukan — skip")
         return
-    logger.debug(f"[{symbol}] ModelMeta: type={meta.model_type!r} run_id={meta.run_id!r}")
+    logger.debug(f"[{symbol}] ModelMeta: type={meta.model_type!r}")
 
     # Fetch + engineer features
     logger.debug(f"[{symbol}] Mulai fetch features...")
@@ -102,7 +94,7 @@ def _process_coin(coin, run_id, data_svc, engine, db, utcnow,
     # Inference — gunakan model_type dari ModelMeta (single source of truth)
     model_type = meta.model_type or "lstm"
     logger.debug(f"[{symbol}] Mulai inference model_type={model_type!r}...")
-    svc = InferenceService(meta, run_id)
+    svc = InferenceService(meta)
     result = svc.predict(symbol, features_df, model_type=model_type)
     if result is None:
         logger.warning(f"[{symbol}] predict=None — inference gagal atau exception (lihat log di atas)")

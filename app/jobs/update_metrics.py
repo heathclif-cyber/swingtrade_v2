@@ -105,7 +105,8 @@ def _refresh_performance_summary() -> None:
 def _scan_new_models() -> None:
     """
     Cek model_registry.json untuk versi baru yang belum ada di MODEL_META.
-    Validasi n_features dan file exists sebelum insert.
+    Versi terdeteksi baru jika inference_config_path berbeda dari yang ada di DB.
+    Validasi n_features dan file exists sebelum upsert.
     """
     from app.extensions import db, utcnow
     from app.models.coin import Coin
@@ -117,13 +118,12 @@ def _scan_new_models() -> None:
     versions = load_registry()
 
     for version in versions:
-        run_id = version.get("run_id")
-        if not run_id:
-            continue
+        model_type = version.get("model_type", "ensemble")
+        run_id_label = version.get("run_id", "?")  # hanya untuk logging
 
         if version.get("n_features") != N_FEATURES:
             logger.warning(
-                f"[scan_models] run_id={run_id} n_features={version.get('n_features')} "
+                f"[scan_models] {model_type} (run={run_id_label}) n_features={version.get('n_features')} "
                 f"!= {N_FEATURES} — skip"
             )
             continue
@@ -131,39 +131,61 @@ def _scan_new_models() -> None:
         paths = version.get("paths", {})
         lstm_path = resolve_path(paths.get("lstm", ""))
         if not lstm_path.exists():
-            logger.debug(f"[scan_models] run_id={run_id} file tidak ada — skip")
+            logger.debug(f"[scan_models] {model_type} (run={run_id_label}) file tidak ada — skip")
             continue
 
-        # Cek apakah sudah ada di DB untuk setidaknya satu koin
-        existing = ModelMeta.query.filter_by(run_id=run_id).first()
-        if existing:
-            continue
+        new_config_path = paths.get("inference_config", "")
 
-        # Insert untuk semua koin aktif
+        # Cek apakah sudah up-to-date: bandingkan inference_config_path di DB
+        sample_coin = Coin.query.filter_by(status="active").first()
+        if sample_coin:
+            up_to_date = ModelMeta.query.filter_by(
+                coin_id=sample_coin.id,
+                model_type=model_type,
+                inference_config_path=new_config_path,
+            ).first()
+            if up_to_date:
+                continue
+
+        # Versi baru terdeteksi — upsert untuk semua koin aktif
         coins = Coin.query.filter_by(status="active").all()
-        inserted = 0
+        bs = version.get("backtest_summary", {})
+        upserted = 0
         for coin in coins:
-            meta = ModelMeta(
-                coin_id               = coin.id,
-                model_type            = version.get("model_type", "ensemble"),
-                run_id                = run_id,
-                n_features            = N_FEATURES,
-                win_rate              = version.get("backtest_summary", {}).get("mean_winrate"),
-                max_drawdown          = version.get("backtest_summary", {}).get("mean_drawdown_lev3x"),
-                model_path            = paths.get("lstm"),
-                scaler_path           = paths.get("scaler"),
-                meta_learner_path     = paths.get("meta"),
-                calibrator_path       = paths.get("calibrator"),
-                inference_config_path = paths.get("inference_config"),
-                status                = "available",
-                trained_at            = utcnow(),
-                evaluated_at          = utcnow(),
-            )
-            db.session.add(meta)
-            inserted += 1
+            meta = ModelMeta.query.filter_by(coin_id=coin.id, model_type=model_type).first()
+            if meta:
+                meta.n_features            = N_FEATURES
+                meta.win_rate              = bs.get("mean_winrate", meta.win_rate)
+                meta.max_drawdown          = bs.get("mean_drawdown_lev3x", meta.max_drawdown)
+                meta.model_path            = paths.get("lstm") or paths.get("lgbm")
+                meta.scaler_path           = paths.get("scaler")
+                meta.meta_learner_path     = paths.get("meta")
+                meta.calibrator_path       = paths.get("calibrator")
+                meta.inference_config_path = new_config_path
+                meta.status                = "available"
+                meta.trained_at            = utcnow()
+                meta.evaluated_at          = utcnow()
+            else:
+                meta = ModelMeta(
+                    coin_id               = coin.id,
+                    model_type            = model_type,
+                    n_features            = N_FEATURES,
+                    win_rate              = bs.get("mean_winrate"),
+                    max_drawdown          = bs.get("mean_drawdown_lev3x"),
+                    model_path            = paths.get("lstm") or paths.get("lgbm"),
+                    scaler_path           = paths.get("scaler"),
+                    meta_learner_path     = paths.get("meta"),
+                    calibrator_path       = paths.get("calibrator"),
+                    inference_config_path = new_config_path,
+                    status                = "available",
+                    trained_at            = utcnow(),
+                    evaluated_at          = utcnow(),
+                )
+                db.session.add(meta)
+            upserted += 1
 
         db.session.commit()
-        logger.info(f"[scan_models] run_id={run_id} — {inserted} ModelMeta baru ditambahkan")
+        logger.info(f"[scan_models] {model_type} (run={run_id_label}) — {upserted} ModelMeta diperbarui")
 
 
 def _rotate_old_signals() -> None:

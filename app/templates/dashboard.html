@@ -157,7 +157,6 @@
       <tr class="text-gray-500 text-xs border-b border-gray-800">
         <th class="px-4 py-2 text-left">Symbol</th>
         <th class="px-4 py-2 text-left">Model</th>
-        <th class="px-4 py-2 text-left">Run ID</th>
         <th class="px-4 py-2 text-right">Win Rate</th>
         <th class="px-4 py-2 text-right">Max DD</th>
         <th class="px-4 py-2 text-right">Trades</th>
@@ -170,7 +169,6 @@
           <a href="/coins/{{ coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">{{ coin.symbol }}</a>
         </td>
         <td class="px-4 py-2 text-gray-300">{{ meta.model_type if meta else '—' }}</td>
-        <td class="px-4 py-2 font-mono text-xs text-gray-500">{{ meta.run_id if meta else '—' }}</td>
         <td class="px-4 py-2 text-right">
           {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
         </td>

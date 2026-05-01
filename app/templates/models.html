@@ -10,7 +10,6 @@
   <table class="w-full">
     <thead>
       <tr class="text-gray-500 text-xs border-b border-gray-800">
-        <th class="px-4 py-2 text-left">Run ID</th>
         <th class="px-4 py-2 text-left">Type</th>
         <th class="px-4 py-2 text-right">n_features</th>
         <th class="px-4 py-2 text-right">Win Rate</th>
@@ -22,7 +21,6 @@
     <tbody>
       {% for v in registry_versions %}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
-        <td class="px-4 py-2 font-mono text-xs text-blue-400">{{ v.run_id }}</td>
         <td class="px-4 py-2 text-gray-300">{{ v.model_type }}</td>
         <td class="px-4 py-2 text-right">{{ v.n_features }}</td>
         <td class="px-4 py-2 text-right text-green-400">
@@ -42,7 +40,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Tidak ada versi di registry</td></tr>
+      <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500">Tidak ada versi di registry</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -59,14 +57,6 @@
         <option value="{{ v.model_type }}" {% if v.model_type == 'lstm' %}selected{% endif %}>
           {{ v.model_type }}
         </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">Run ID</label>
-      <select id="bulk-run" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono">
-        {% for v in registry_versions %}
-        <option value="{{ v.run_id }}">{{ v.run_id }}</option>
         {% endfor %}
       </select>
     </div>
@@ -96,7 +86,7 @@
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-3 font-mono text-xs font-medium">{{ coin.symbol }}</td>
         <td class="px-4 py-3 text-xs text-gray-300">
-          {% if meta %}{{ meta.model_type }} / {{ meta.run_id }}{% else %}—{% endif %}
+          {% if meta %}{{ meta.model_type }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-right text-xs">
           {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
@@ -109,9 +99,9 @@
           <div class="flex items-center gap-2">
             <select id="sel-{{ coin.symbol }}" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs">
               {% for m in available_metas | selectattr("coin_id", "equalto", coin.id) %}
-              <option value="{{ m.model_type }}|{{ m.run_id }}"
+              <option value="{{ m.model_type }}"
                 {% if sel and sel.model_meta_id == m.id %}selected{% endif %}>
-                {{ m.model_type }} / {{ m.run_id }}
+                {{ m.model_type }}
               </option>
               {% endfor %}
             </select>
@@ -132,17 +122,16 @@
 </div>
 
 <script>
-function selectModel(symbol, val) {
-  const [model_type, run_id] = val.split('|');
+function selectModel(symbol, model_type) {
   fetch('/models/select', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({symbol, model_type, run_id}),
+    body: JSON.stringify({symbol, model_type}),
   })
   .then(r => r.json())
   .then(d => {
     if (d.status === 'ok') {
-      alert(symbol + ': model diubah ke ' + model_type + ' / ' + run_id);
+      alert(symbol + ': model diubah ke ' + model_type);
       window.location.reload();
     } else {
       alert('Error: ' + (d.error || JSON.stringify(d)));
@@ -152,10 +141,9 @@ function selectModel(symbol, val) {
 
 function selectAll() {
   const model_type = document.getElementById('bulk-type').value;
-  const run_id     = document.getElementById('bulk-run').value;
   const resultEl   = document.getElementById('bulk-result');
 
-  if (!confirm('Terapkan ' + model_type + ' / ' + run_id + ' ke SEMUA coin aktif?')) return;
+  if (!confirm('Terapkan ' + model_type + ' ke SEMUA coin aktif?')) return;
 
   resultEl.textContent = 'Memproses...';
   resultEl.classList.remove('hidden', 'text-green-400', 'text-red-400');
@@ -164,7 +152,7 @@ function selectAll() {
   fetch('/models/select-all', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({model_type, run_id}),
+    body: JSON.stringify({model_type}),
   })
   .then(r => r.json())
   .then(d => {

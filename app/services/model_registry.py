@@ -18,19 +18,11 @@ def load_registry() -> list[dict]:
 
 
 def get_active_version() -> Optional[dict]:
-    """Return versi pertama dengan status 'available' atau 'active'."""
-    versions = load_registry()
-    for v in versions:
-        if v.get("status") in ("available", "active"):
-            return v
-    return None
-
-
-def get_version_by_run_id(run_id: str) -> Optional[dict]:
-    for v in load_registry():
-        if v.get("run_id") == run_id:
-            return v
-    return None
+    """Return versi terbaru (berdasarkan trained_at) dengan status 'available' atau 'active'."""
+    versions = [v for v in load_registry() if v.get("status") in ("available", "active")]
+    if not versions:
+        return None
+    return max(versions, key=lambda v: v.get("trained_at", ""), default=None)
 
 
 def resolve_path(relative: str) -> Path:
@@ -38,10 +30,11 @@ def resolve_path(relative: str) -> Path:
     return ROOT / relative
 
 
-def load_inference_config(run_id: str) -> dict:
-    version = get_version_by_run_id(run_id)
+def load_inference_config() -> dict:
+    """Load inference config dari versi terbaru yang aktif."""
+    version = get_active_version()
     if not version:
-        raise ValueError(f"run_id {run_id} tidak ditemukan di registry")
+        raise ValueError("Tidak ada versi model aktif di registry")
     config_path = resolve_path(version["paths"]["inference_config"])
     with open(config_path) as f:
         return json.load(f)
