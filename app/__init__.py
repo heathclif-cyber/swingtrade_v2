@@ -168,8 +168,11 @@ def _ensure_model_variants(app: Flask) -> None:
         registry = json.load(f)
 
     versions_by_type = {v["model_type"]: v for v in registry["versions"]}
-    missing_types = [t for t in ("lgbm", "lstm") if t in versions_by_type]
-    if not missing_types:
+    missing_types = [t for t in ("lgbm", "lstm") if t not in versions_by_type]
+    if missing_types:
+        logger.warning(f"[ensure_model_variants] Tipe tidak ada di registry, dilewati: {missing_types}")
+    types_to_process = [t for t in ("lgbm", "lstm") if t in versions_by_type]
+    if not types_to_process:
         return
 
     config_path = models_dir / "inference_config.json"
@@ -185,7 +188,7 @@ def _ensure_model_variants(app: Flask) -> None:
     added = 0
     for coin in Coin.query.all():
         per_coin = per_coin_data.get(coin.symbol, {})
-        for vtype in missing_types:
+        for vtype in types_to_process:
             exists = ModelMeta.query.filter_by(
                 coin_id=coin.id, model_type=vtype
             ).first()
