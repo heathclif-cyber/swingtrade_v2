@@ -14,3 +14,9 @@ data/inference/
 data/raw/
 data/processed/
 data/labeled/
+
+# Claude Code
+.claude/settings.local.json
+
+# Audit reports
+AUDIT_REPORT.md
