@@ -65,8 +65,8 @@ def _init_extensions(app: Flask) -> None:
         if Coin.query.count() == 0:
             _auto_seed(app)
         else:
-            _update_model_meta(app)
             _ensure_model_variants(app)
+            _update_model_meta(app)
 
 
 def _register_blueprints(app: Flask) -> None:

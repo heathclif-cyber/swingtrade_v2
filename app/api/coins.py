@@ -9,12 +9,18 @@ def coins():
     from app.models.coin import Coin
     from app.models.model_meta import ModelMeta
     from app.models.model_selection import ModelSelection
-    from sqlalchemy import func
+    from app.models.performance_summary import PerformanceSummary
+    from sqlalchemy import and_
 
     rows = (
-        db.session.query(Coin, ModelMeta, ModelSelection)
+        db.session.query(Coin, ModelMeta, ModelSelection, PerformanceSummary)
         .join(ModelSelection, ModelSelection.coin_id == Coin.id, isouter=True)
         .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id, isouter=True)
+        .join(
+            PerformanceSummary,
+            and_(PerformanceSummary.coin_id == Coin.id, PerformanceSummary.period == "all"),
+            isouter=True,
+        )
         .filter(Coin.status == "active")
         .order_by(Coin.symbol)
         .all()
