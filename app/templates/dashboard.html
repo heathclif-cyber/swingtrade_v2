@@ -47,51 +47,53 @@
       <a href="/paper/signals" class="text-xs text-blue-400 hover:underline">Lihat semua</a>
     </div>
     {% if latest_signals %}
-    <table class="w-full">
-      <thead>
-        <tr class="text-gray-500 text-xs border-b border-gray-800">
-          <th class="px-4 py-2 text-left">Coin</th>
-          <th class="px-4 py-2 text-left">Dir</th>
-          <th class="px-4 py-2 text-right">Conf</th>
-          <th class="px-4 py-2 text-right">Entry</th>
-          <th class="px-4 py-2 text-right">TP</th>
-          <th class="px-4 py-2 text-right">SL</th>
-          <th class="px-4 py-2 text-right">H4 High</th>
-          <th class="px-4 py-2 text-right">H4 Low</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sig in latest_signals %}
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
-          <td class="px-4 py-2 font-mono text-xs">
-            <a href="/coins/{{ sig.coin.symbol }}" class="text-blue-400 hover:underline">{{ sig.coin.symbol }}</a>
-          </td>
-          <td class="px-4 py-2">
-            <span class="px-1.5 py-0.5 rounded text-xs font-medium
-              {% if sig.direction == 'LONG' %}bg-green-900 text-green-300
-              {% elif sig.direction == 'SHORT' %}bg-red-900 text-red-300
-              {% else %}bg-gray-700 text-gray-300{% endif %}">
-              {{ sig.direction }}
-            </span>
-          </td>
-          <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0) * 100) }}%</td>
-          <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
-          <td class="px-4 py-2 text-right font-mono text-green-400">
-            {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
-          </td>
-          <td class="px-4 py-2 text-right font-mono text-red-400">
-            {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
-          </td>
-          <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
-            {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
-          </td>
-          <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
-            {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="w-full whitespace-nowrap">
+        <thead>
+          <tr class="text-gray-500 text-xs border-b border-gray-800">
+            <th class="px-4 py-2 text-left">Coin</th>
+            <th class="px-4 py-2 text-left">Dir</th>
+            <th class="px-4 py-2 text-right">Conf</th>
+            <th class="px-4 py-2 text-right">Entry</th>
+            <th class="px-4 py-2 text-right">TP</th>
+            <th class="px-4 py-2 text-right">SL</th>
+            <th class="px-4 py-2 text-right">H4 High</th>
+            <th class="px-4 py-2 text-right">H4 Low</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sig in latest_signals %}
+          <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+            <td class="px-4 py-2 font-mono text-xs">
+              <a href="/coins/{{ sig.coin.symbol }}" class="text-blue-400 hover:underline">{{ sig.coin.symbol }}</a>
+            </td>
+            <td class="px-4 py-2">
+              <span class="px-1.5 py-0.5 rounded text-xs font-medium
+                {% if sig.direction == 'LONG' %}bg-green-900 text-green-300
+                {% elif sig.direction == 'SHORT' %}bg-red-900 text-red-300
+                {% else %}bg-gray-700 text-gray-300{% endif %}">
+                {{ sig.direction }}
+              </span>
+            </td>
+            <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0) * 100) }}%</td>
+            <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
+            <td class="px-4 py-2 text-right font-mono text-green-400">
+              {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right font-mono text-red-400">
+              {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+              {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+              {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <p class="px-4 py-6 text-gray-500 text-center">Belum ada sinyal — menunggu job generate_signals...</p>
     {% endif %}
@@ -104,56 +106,58 @@
       <a href="/paper/trades?status=open" class="text-xs text-blue-400 hover:underline">Lihat semua</a>
     </div>
     {% if open_trades %}
-    <table class="w-full">
-      <thead>
-        <tr class="text-gray-500 text-xs border-b border-gray-800">
-          <th class="px-4 py-2 text-left">Coin</th>
-          <th class="px-4 py-2 text-left">Dir</th>
-          <th class="px-4 py-2 text-right">Entry</th>
-          <th class="px-4 py-2 text-right">TP</th>
-          <th class="px-4 py-2 text-right">SL</th>
-          <th class="px-4 py-2 text-right">H4 High</th>
-          <th class="px-4 py-2 text-right">H4 Low</th>
-          <th class="px-4 py-2 text-right">Bars</th>
-          <th class="px-4 py-2 text-right">Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for trade in open_trades %}
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
-          <td class="px-4 py-2 font-mono text-xs">
-            <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline">{{ trade.coin.symbol }}</a>
-          </td>
-          <td class="px-4 py-2">
-            <span class="px-1.5 py-0.5 rounded text-xs font-medium
-              {% if trade.direction == 'LONG' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
-              {{ trade.direction }}
-            </span>
-          </td>
-          <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(trade.entry_price) }}</td>
-          <td class="px-4 py-2 text-right font-mono text-green-400">{{ '%.4f' | format(trade.tp_price or 0) }}</td>
-          <td class="px-4 py-2 text-right font-mono text-red-400">{{ '%.4f' | format(trade.sl_price or 0) }}</td>
-          <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
-            {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
-          </td>
-          <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
-            {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
-          </td>
-          <td class="px-4 py-2 text-right text-gray-400">{{ trade.hold_bars or 0 }}</td>
-          <td class="px-4 py-2 text-right">
-            <button
-              hx-post="/paper/trades/{{ trade.id }}/close"
-              hx-confirm="Tutup posisi {{ trade.direction }} {{ trade.coin.symbol }}?"
-              hx-swap="none"
-              hx-on::after-request="window.location.reload()"
-              class="text-xs text-red-400 hover:text-red-300 border border-red-800 hover:border-red-600 rounded px-2 py-0.5">
-              Close
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="w-full whitespace-nowrap">
+        <thead>
+          <tr class="text-gray-500 text-xs border-b border-gray-800">
+            <th class="px-4 py-2 text-left">Coin</th>
+            <th class="px-4 py-2 text-left">Dir</th>
+            <th class="px-4 py-2 text-right">Entry</th>
+            <th class="px-4 py-2 text-right">TP</th>
+            <th class="px-4 py-2 text-right">SL</th>
+            <th class="px-4 py-2 text-right">H4 High</th>
+            <th class="px-4 py-2 text-right">H4 Low</th>
+            <th class="px-4 py-2 text-right">Bars</th>
+            <th class="px-4 py-2 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trade in open_trades %}
+          <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+            <td class="px-4 py-2 font-mono text-xs">
+              <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline">{{ trade.coin.symbol }}</a>
+            </td>
+            <td class="px-4 py-2">
+              <span class="px-1.5 py-0.5 rounded text-xs font-medium
+                {% if trade.direction == 'LONG' %}bg-green-900 text-green-300{% else %}bg-red-900 text-red-300{% endif %}">
+                {{ trade.direction }}
+              </span>
+            </td>
+            <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(trade.entry_price) }}</td>
+            <td class="px-4 py-2 text-right font-mono text-green-400">{{ '%.4f' | format(trade.tp_price or 0) }}</td>
+            <td class="px-4 py-2 text-right font-mono text-red-400">{{ '%.4f' | format(trade.sl_price or 0) }}</td>
+            <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+              {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+              {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-right text-gray-400">{{ trade.hold_bars or 0 }}</td>
+            <td class="px-4 py-2 text-right">
+              <button
+                hx-post="/paper/trades/{{ trade.id }}/close"
+                hx-confirm="Tutup posisi {{ trade.direction }} {{ trade.coin.symbol }}?"
+                hx-swap="none"
+                hx-on::after-request="window.location.reload()"
+                class="text-xs text-red-400 hover:text-red-300 border border-red-800 hover:border-red-600 rounded px-2 py-0.5">
+                Close
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <p class="px-4 py-6 text-gray-500 text-center">Tidak ada posisi terbuka</p>
     {% endif %}
