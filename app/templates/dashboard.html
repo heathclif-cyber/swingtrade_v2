@@ -178,25 +178,29 @@
         <th class="px-4 py-2 text-left">Symbol</th>
         <th class="px-4 py-2 text-left">Model</th>
         <th class="px-4 py-2 text-right">Win Rate</th>
-        <th class="px-4 py-2 text-right">Max DD</th>
+        <th class="px-4 py-2 text-right">Max DD ($)</th>
         <th class="px-4 py-2 text-right">Trades</th>
       </tr>
     </thead>
     <tbody>
-      {% for coin, meta in model_rows %}
+      {% for coin, meta, perf in model_rows %}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-2">
           <a href="/coins/{{ coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">{{ coin.symbol }}</a>
         </td>
         <td class="px-4 py-2 text-gray-300">{{ meta.model_type if meta else '—' }}</td>
         <td class="px-4 py-2 text-right">
-          {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
+          {% if perf and perf.win_rate %}
+            <span class="{% if perf.win_rate >= 0.5 %}text-green-400{% else %}text-yellow-400{% endif %}">
+              {{ '%.1f' | format(perf.win_rate * 100) }}%
+            </span>
+          {% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right text-red-400">
-          {% if meta and meta.max_drawdown %}{{ '%.1f' | format(meta.max_drawdown * 100) }}%{% else %}—{% endif %}
+          {% if perf and perf.max_drawdown %}{{ '%.2f' | format(perf.max_drawdown) }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right text-gray-400">
-          {{ meta.total_trades if meta and meta.total_trades else '—' }}
+          {{ perf.total_trades if perf and perf.total_trades else '—' }}
         </td>
       </tr>
       {% endfor %}

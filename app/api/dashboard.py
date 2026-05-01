@@ -39,11 +39,17 @@ def dashboard():
         if perf_30d else 0.0
     )
 
-    # Model performance per koin
+    # Model performance per koin — sumber dari PerformanceSummary (paper trading)
+    from sqlalchemy import and_
     model_rows = (
-        db.session.query(Coin, ModelMeta)
+        db.session.query(Coin, ModelMeta, PerformanceSummary)
         .join(ModelSelection, ModelSelection.coin_id == Coin.id)
         .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id)
+        .join(
+            PerformanceSummary,
+            and_(PerformanceSummary.coin_id == Coin.id, PerformanceSummary.period == "all"),
+            isouter=True,
+        )
         .filter(Coin.status == "active")
         .order_by(Coin.symbol)
         .all()
