@@ -166,17 +166,16 @@ class InferenceService:
         seq_len = self._config.get("inference", {}).get("seq_len", 32)
 
         from app.services.data_service import InferenceDataService
-        svc = InferenceDataService.__new__(InferenceDataService)
 
         if model_type == "lstm":
-            return self._lstm_proba(df, bundle, seq_len, svc)
+            return self._lstm_proba(df, bundle, seq_len, InferenceDataService)
 
         if model_type == "lgbm":
             return self._lgbm_proba(df, bundle)
 
         # ensemble
         lgbm_p = self._lgbm_proba(df, bundle)
-        lstm_p = self._lstm_proba(df, bundle, seq_len, svc)
+        lstm_p = self._lstm_proba(df, bundle, seq_len, InferenceDataService)
         combined = np.concatenate([lgbm_p, lstm_p]).reshape(1, -1)  # (1, 6)
 
         if bundle.meta is not None:
@@ -189,10 +188,10 @@ class InferenceService:
 
         return proba
 
-    def _lstm_proba(self, df, bundle: _ModelBundle, seq_len: int, svc) -> np.ndarray:
+    def _lstm_proba(self, df, bundle: _ModelBundle, seq_len: int, data_svc_cls) -> np.ndarray:
         if bundle.lstm is None or bundle.scaler is None:
             raise RuntimeError("LSTM atau scaler tidak ter-load")
-        seq = svc.prepare_lstm_input(df, bundle.scaler)  # (1, 32, 85)
+        seq = data_svc_cls.prepare_lstm_input(df, bundle.scaler)  # (1, 32, 85)
         tensor = torch.tensor(seq, dtype=torch.float32)
         with torch.no_grad():
             logits = bundle.lstm(tensor)

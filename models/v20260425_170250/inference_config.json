@@ -6,9 +6,9 @@
     "end": "2025-04-01"
   },
   "inference": {
-    "confidence_threshold_entry": 0.6,
-    "confidence_full_size": 0.75,
-    "confidence_half_size": 0.6,
+    "confidence_threshold_entry": 0.50,
+    "confidence_full_size": 0.70,
+    "confidence_half_size": 0.55,
     "min_hold_bars": 2,
     "max_hold_bars": 48,
     "timeframe": "1h",

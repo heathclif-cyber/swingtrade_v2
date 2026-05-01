@@ -155,9 +155,8 @@ class InferenceDataService:
             logger.error(f"[{symbol}] prepare_latest_features error: {e}", exc_info=True)
             return None
 
-    def prepare_lstm_input(
-        self, df: pd.DataFrame, scaler
-    ) -> np.ndarray:
+    @staticmethod
+    def prepare_lstm_input(df: pd.DataFrame, scaler) -> np.ndarray:
         """
         Scale FEATURE_COLS_V3 dan return sequence terakhir (1, LSTM_SEQ_LEN, 85).
         """
