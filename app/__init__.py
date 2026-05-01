@@ -52,7 +52,9 @@ def _init_extensions(app: Flask) -> None:
     db.init_app(app)
     with app.app_context():
         # import semua models agar SQLAlchemy tahu tabel yang ada
-        import app.models  # noqa: F401
+        # NOTE: Gunakan `from` import atau alias untuk mencegah `app` (Flask
+        # instance parameter) tertimpa oleh binding `import app.models`.
+        import app.models as _app_models  # noqa: F401
         db.create_all()
 
         # Jalankan migration untuk menambah kolom baru ke tabel existing
@@ -87,12 +89,15 @@ def _register_blueprints(app: Flask) -> None:
     app.jinja_env.filters["wita_fmt"] = wita_format
 
 
-def _run_migrations(app: Flask) -> None:
+def _run_migrations(flask_app: Flask) -> None:
     """Tambahkan kolom baru ke tabel existing jika belum ada.
     
     db.create_all() hanya membuat tabel baru, bukan menambah kolom
     ke tabel yang sudah ada. Fungsi ini menjalankan ALTER TABLE
     untuk kolom-kolom yang ditambahkan setelah deploy awal.
+    
+    Parameter bernama flask_app (bukan app) untuk menghindari
+    konflik nama dengan modul paket 'app' di __init__.py.
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -104,8 +109,10 @@ def _run_migrations(app: Flask) -> None:
         ("trade",  "h4_swing_low",  "DOUBLE PRECISION"),
     ]
     
-    # Deteksi tipe database
-    is_sqlite = "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    # Deteksi tipe database — gunakan flask_app bukan app agar tidak
+    # bentrok dengan nama modul paket 'app'
+    db_uri = flask_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    is_sqlite = "sqlite" in db_uri
     
     for table, column, col_type in migrations:
         try:
