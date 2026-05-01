@@ -85,14 +85,20 @@ class InferenceService:
                 direction = "FLAT"
 
             last = features_df.iloc[-1]
+            import math
+            h4_sh_val = last.get("h4_swing_high")
+            h4_sl_val = last.get("h4_swing_low")
+            h4_sh = float(h4_sh_val) if h4_sh_val is not None and not math.isnan(h4_sh_val) else 0.0
+            h4_sl = float(h4_sl_val) if h4_sl_val is not None and not math.isnan(h4_sl_val) else 0.0
+
             return {
                 "direction":   direction,
                 "confidence":  round(confidence, 4),
                 "proba":       proba.tolist(),
                 "entry_price": float(last["close"]),
                 "atr_value":   float(last.get("atr_14_h1", 0.0)),
-                "h4_swing_high": float(last.get("h4_swing_high", 0.0)),
-                "h4_swing_low":  float(last.get("h4_swing_low",  0.0)),
+                "h4_swing_high": h4_sh,
+                "h4_swing_low":  h4_sl,
             }
 
         except Exception as e:

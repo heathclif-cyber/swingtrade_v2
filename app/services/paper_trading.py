@@ -93,8 +93,12 @@ class PaperTradingEngine:
         lev   = self._leverage
         fee   = 2 * self._fee_per_side * modal
 
-        sh = float(last_row.get("h4_swing_high", 0) or 0) if last_row is not None else None
-        sl_lvl = float(last_row.get("h4_swing_low", 0) or 0) if last_row is not None else None
+        import math
+        sh_val = last_row.get("h4_swing_high") if last_row is not None else None
+        sl_val = last_row.get("h4_swing_low") if last_row is not None else None
+        
+        sh = float(sh_val) if sh_val is not None and not math.isnan(sh_val) else None
+        sl_lvl = float(sl_val) if sl_val is not None and not math.isnan(sl_val) else None
 
         trade = Trade(
             signal_id     = signal_row.id,
@@ -187,8 +191,11 @@ class PaperTradingEngine:
     ) -> tuple[Optional[float], Optional[float]]:
         """Swing-based TP/SL murni. Fallback ke fixed ATR jika swing tidak tersedia."""
         if last_row is not None and atr > 0:
-            sh = float(last_row.get("h4_swing_high", 0) or 0)
-            sl_lvl = float(last_row.get("h4_swing_low", 0) or 0)
+            import math
+            sh_val = last_row.get("h4_swing_high")
+            sl_val = last_row.get("h4_swing_low")
+            sh = float(sh_val) if sh_val is not None and not math.isnan(sh_val) else 0.0
+            sl_lvl = float(sl_val) if sl_val is not None and not math.isnan(sl_val) else 0.0
 
             # Langsung terapkan Swing Level tanpa validasi ATR Mult
             if direction == "LONG" and sh > entry and sl_lvl < entry:

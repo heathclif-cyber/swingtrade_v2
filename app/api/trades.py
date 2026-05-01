@@ -32,23 +32,53 @@ def trades():
 
     # Summary cards — semua koin, period "all"
     perf_all = PerformanceSummary.query.filter_by(period="all").all()
-    summary = {
-        "total_trades":  sum(p.total_trades  or 0 for p in perf_all),
-        "win_count":     sum(p.win_count     or 0 for p in perf_all),
-        "total_pnl":     sum(p.total_pnl     or 0 for p in perf_all),
-        "win_rate":      (
-            sum(p.win_rate or 0 for p in perf_all) / len(perf_all)
-            if perf_all else 0.0
-        ),
-        "profit_factor": (
-            sum(p.profit_factor or 0 for p in perf_all) / len(perf_all)
-            if perf_all else 0.0
-        ),
-        "sharpe_ratio":  (
-            sum(p.sharpe_ratio or 0 for p in perf_all) / len(perf_all)
-            if perf_all else 0.0
-        ),
-    }
+    if perf_all:
+        summary = {
+            "total_trades":  sum(p.total_trades  or 0 for p in perf_all),
+            "win_count":     sum(p.win_count     or 0 for p in perf_all),
+            "total_pnl":     sum(p.total_pnl     or 0 for p in perf_all),
+            "win_rate":      (
+                sum(p.win_rate or 0 for p in perf_all) / len(perf_all)
+                if perf_all else 0.0
+            ),
+            "profit_factor": (
+                sum(p.profit_factor or 0 for p in perf_all) / len(perf_all)
+                if perf_all else 0.0
+            ),
+            "sharpe_ratio":  (
+                sum(p.sharpe_ratio or 0 for p in perf_all) / len(perf_all)
+                if perf_all else 0.0
+            ),
+        }
+    else:
+        # Fallback if PerformanceSummary is empty (job hasn't run yet)
+        trades_closed = Trade.query.filter_by(status="closed").all()
+        total_trades = len(trades_closed)
+        win_count = sum(1 for t in trades_closed if (t.pnl_net or 0) > 0)
+        total_pnl = sum(t.pnl_net or 0 for t in trades_closed)
+        win_rate = win_count / total_trades if total_trades > 0 else 0.0
+        
+        gross_profit = sum(t.pnl_net or 0 for t in trades_closed if (t.pnl_net or 0) > 0)
+        gross_loss = abs(sum(t.pnl_net or 0 for t in trades_closed if (t.pnl_net or 0) < 0))
+        profit_factor = gross_profit / gross_loss if gross_loss > 0 else (99.0 if gross_profit > 0 else 0.0)
+
+        pnl_pcts = [t.pnl_pct or 0 for t in trades_closed]
+        if len(pnl_pcts) > 1:
+            import numpy as np
+            mean_pct = np.mean(pnl_pcts)
+            std_pct = np.std(pnl_pcts)
+            sharpe_ratio = mean_pct / std_pct if std_pct > 0 else 0.0
+        else:
+            sharpe_ratio = 0.0
+
+        summary = {
+            "total_trades": total_trades,
+            "win_count": win_count,
+            "total_pnl": total_pnl,
+            "win_rate": win_rate,
+            "profit_factor": profit_factor,
+            "sharpe_ratio": sharpe_ratio,
+        }
 
     coins = Coin.query.filter_by(status="active").order_by(Coin.symbol).all()
 
