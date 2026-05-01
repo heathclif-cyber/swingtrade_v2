@@ -44,7 +44,7 @@
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer"
           onclick="fetch('/paper/signals/{{ sig.id }}').then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2)))">
         <td class="px-4 py-2 text-xs text-gray-500">
-          {{ sig.signal_time.strftime('%m-%d %H:%M') if sig.signal_time else '—' }}
+          {{ sig.signal_time | wita_fmt('%m-%d %H:%M') }}
         </td>
         <td class="px-4 py-2">
           <a href="/coins/{{ sig.coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs"

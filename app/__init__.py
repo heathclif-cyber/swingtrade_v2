@@ -68,6 +68,10 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(models_bp)
     app.register_blueprint(health_bp)
 
+    # Register WITA timezone filter for Jinja templates
+    from app.extensions import wita_format
+    app.jinja_env.filters["wita_fmt"] = wita_format
+
 
 def _init_scheduler(app: Flask) -> None:
     from app.jobs import init_scheduler

@@ -34,7 +34,7 @@ def init_scheduler(app: Flask) -> None:
     position_interval = int(os.getenv("POSITION_CHECK_INTERVAL_MINUTES", 5))
     metrics_interval  = 6  # jam, tidak dikonfigurasi via env karena jarang diubah
 
-    _scheduler = BackgroundScheduler(timezone="UTC", daemon=True)
+    _scheduler = BackgroundScheduler(timezone="Asia/Makassar", daemon=True)
 
     from app.jobs import fetch_latest, check_positions, generate_signals, update_metrics
 

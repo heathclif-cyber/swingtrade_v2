@@ -73,7 +73,7 @@
       {% for trade in pagination.items %}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-2 text-xs text-gray-500">
-          {{ trade.opened_at.strftime('%m-%d %H:%M') if trade.opened_at else '—' }}
+          {{ trade.opened_at | wita_fmt('%m-%d %H:%M') }}
         </td>
         <td class="px-4 py-2">
           <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">

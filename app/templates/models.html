@@ -72,7 +72,7 @@
           {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-xs text-gray-500">
-          {% if sel %}{{ sel.selected_at.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}
+          {{ sel.selected_at | wita_fmt('%Y-%m-%d %H:%M') if sel else '—' }}
         </td>
         <td class="px-4 py-3">
           {% if available_metas %}

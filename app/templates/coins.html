@@ -48,9 +48,7 @@
           {{ meta.total_trades if meta and meta.total_trades else '—' }}
         </td>
         <td class="px-4 py-3 text-xs text-gray-500">
-          {% if coin.last_signal_at %}
-            {{ coin.last_signal_at.strftime('%m-%d %H:%M') }}
-          {% else %}—{% endif %}
+          {{ coin.last_signal_at | wita_fmt('%m-%d %H:%M') }}
         </td>
         <td class="px-4 py-3">
           <span class="px-1.5 py-0.5 rounded text-xs

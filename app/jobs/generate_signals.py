@@ -44,18 +44,13 @@ def run(app: Flask) -> None:
             logger.error(f"[generate_signals] Gagal load inference_config: {e}")
             return
 
-        recommended = config.get("coins_validated", {}).get("recommended", [])
-        if not recommended:
-            logger.warning("[generate_signals] coins_validated.recommended kosong")
-            return
-
+        # Ambil semua koin aktif — tidak hanya recommended
         coins = Coin.query.filter(
-            Coin.symbol.in_(recommended),
             Coin.status == "active",
         ).all()
 
         if not coins:
-            logger.warning("[generate_signals] Tidak ada koin aktif yang cocok dengan recommended list")
+            logger.warning("[generate_signals] Tidak ada koin aktif di database")
             return
 
         data_svc = InferenceDataService()

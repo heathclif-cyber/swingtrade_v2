@@ -17,10 +17,24 @@ Usage:
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import requests
+
+# WITA (Waktu Indonesia Tengah) = UTC+8
+WITA_TZ = timezone(timedelta(hours=8))
+
+
+def _format_wita(dt: datetime | None, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Convert UTC datetime to WITA and format as string."""
+    if dt is None:
+        return "N/A"
+    if dt.tzinfo is not None:
+        wita_dt = dt.astimezone(WITA_TZ)
+    else:
+        wita_dt = dt.replace(tzinfo=timezone.utc).astimezone(WITA_TZ)
+    return wita_dt.strftime(fmt)
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +108,7 @@ class TelegramService:
         if signal.sl_price:
             text += f"<b>SL:</b> {signal.sl_price:.6f}\n"
         
-        text += f"\n<b>Time:</b> {signal.signal_time.strftime('%Y-%m-%d %H:%M UTC') if signal.signal_time else 'N/A'}"
+        text += f"\n<b>Time (WITA):</b> {_format_wita(signal.signal_time)}"
         text += f"\n<b>Timeframe:</b> {signal.timeframe or '1h'}"
 
         return self._send_message(text)
@@ -122,7 +136,7 @@ class TelegramService:
 <b>SL:</b> {trade.sl_price:.6f if trade.sl_price else 'N/A'}
 <b>Leverage:</b> {trade.leverage}x
 
-<b>Time:</b> {trade.opened_at.strftime('%Y-%m-%d %H:%M UTC') if trade.opened_at else 'N/A'}
+<b>Time (WITA):</b> {_format_wita(trade.opened_at)}
 """
         return self._send_message(text)
 
@@ -151,7 +165,7 @@ class TelegramService:
 <b>PnL:</b> {trade.pnl_net:.2f} ({trade.pnl_pct:.2%})
 <b>Hold:</b> {trade.hold_bars} bars
 
-<b>Closed:</b> {trade.closed_at.strftime('%Y-%m-%d %H:%M UTC') if trade.closed_at else 'N/A'}
+<b>Closed (WITA):</b> {_format_wita(trade.closed_at)}
 """
         return self._send_message(text)
 
@@ -179,7 +193,7 @@ class TelegramService:
 <b>Best Trade:</b> {stats.get('best_trade', 0):.2f}
 <b>Worst Trade:</b> {stats.get('worst_trade', 0):.2f}
 
-<b>Date:</b> {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
+<b>Date (WITA):</b> {datetime.now(WITA_TZ).strftime('%Y-%m-%d')}
 """
         return self._send_message(text)
 
