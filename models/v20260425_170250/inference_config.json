@@ -25,8 +25,8 @@
     }
   },
   "risk": {
-    "modal_per_trade": 1000.0,
-    "leverage_recommended": 3.0,
+    "modal_per_trade": 100.0,
+    "leverage_recommended": 5.0,
     "leverage_max": 5.0,
     "fee_per_side": 0.0004
   },
