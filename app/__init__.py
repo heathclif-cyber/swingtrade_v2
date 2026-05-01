@@ -53,12 +53,13 @@ def _init_extensions(app: Flask) -> None:
         import app.models  # noqa: F401
         db.create_all()
         
-        # Auto-seed if database is empty
+        # Auto-seed if database is empty, else ensure model variants exist
         from app.models.coin import Coin
         if Coin.query.count() == 0:
             _auto_seed(app)
         else:
             _update_model_meta(app)
+            _ensure_model_variants(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -146,6 +147,77 @@ def _update_model_meta(app: Flask) -> None:
         logger.info("[auto_seed] Model performance data updated successfully.")
 
 
+def _ensure_model_variants(app: Flask) -> None:
+    """Pastikan setiap koin memiliki ModelMeta untuk lgbm dan lstm (migrasi DB lama)."""
+    import json
+    import logging
+    from pathlib import Path
+    from datetime import datetime
+    from app.extensions import db
+    from app.models.coin import Coin
+    from app.models.model_meta import ModelMeta
+
+    logger = logging.getLogger(__name__)
+
+    models_dir = Path(__file__).parent.parent / "models"
+    registry_path = models_dir / "model_registry.json"
+    if not registry_path.exists():
+        return
+
+    with open(registry_path) as f:
+        registry = json.load(f)
+
+    versions_by_type = {v["model_type"]: v for v in registry["versions"]}
+    missing_types = [t for t in ("lgbm", "lstm") if t in versions_by_type]
+    if not missing_types:
+        return
+
+    config_path = models_dir / "inference_config.json"
+    with open(config_path) as f:
+        inference_config = json.load(f)
+
+    bs = inference_config.get("backtest_summary", {})
+    per_coin_data = inference_config.get("backtest_per_coin", {})
+    trained_at = datetime.fromisoformat(
+        inference_config.get("created_at", "2026-04-25T17:02:50+00:00")
+    )
+
+    added = 0
+    for coin in Coin.query.all():
+        per_coin = per_coin_data.get(coin.symbol, {})
+        for vtype in missing_types:
+            exists = ModelMeta.query.filter_by(
+                coin_id=coin.id, model_type=vtype
+            ).first()
+            if exists:
+                continue
+            v = versions_by_type[vtype]
+            p = v.get("paths", {})
+            meta = ModelMeta(
+                coin_id               = coin.id,
+                model_type            = vtype,
+                run_id                = v["run_id"],
+                win_rate              = per_coin.get("winrate",   bs.get("mean_winrate")),
+                total_trades          = per_coin.get("total_trades"),
+                max_drawdown          = per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
+                n_features            = v.get("n_features", 85),
+                model_path            = p.get("lstm") or p.get("lgbm"),
+                scaler_path           = p.get("scaler"),
+                meta_learner_path     = None,
+                calibrator_path       = None,
+                inference_config_path = p.get("inference_config"),
+                status                = "available",
+                trained_at            = trained_at,
+                evaluated_at          = trained_at,
+            )
+            db.session.add(meta)
+            added += 1
+
+    if added:
+        db.session.commit()
+        logger.info(f"[ensure_model_variants] Ditambahkan {added} ModelMeta baru (lgbm/lstm)")
+
+
 def _auto_seed(app: Flask) -> None:
     """Auto-seed database if empty (for Railway deployment)."""
     import json
@@ -200,39 +272,45 @@ def _auto_seed(app: Flask) -> None:
         db.session.add(coin)
     db.session.flush()
     
-    # Insert ModelMeta for each coin (with per-coin backtest data)
+    # Kumpulkan semua versi dari registry (ensemble, lgbm, lstm)
     trained_at = datetime.fromisoformat(inference_config.get("created_at", "2026-04-25T17:02:50+00:00"))
     bs = inference_config.get("backtest_summary", {})
     per_coin_data = inference_config.get("backtest_per_coin", {})
-    paths = version.get("paths", {})
-    
-    for coin in Coin.query.all():
-        # Get per-coin backtest data (fallback to global summary)
+
+    versions_by_type = {v["model_type"]: v for v in registry["versions"]}
+
+    def _make_meta(coin, vtype):
+        v = versions_by_type.get(vtype, {})
+        p = v.get("paths", {})
         per_coin = per_coin_data.get(coin.symbol, {})
-        
-        meta = ModelMeta(
-            coin_id=coin.id,
-            model_type="ensemble",
-            run_id=run_id,
-            win_rate=per_coin.get("winrate", bs.get("mean_winrate")),
-            total_trades=per_coin.get("total_trades"),
-            max_drawdown=per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
-            n_features=version.get("n_features", 85),
-            model_path=paths.get("lstm"),
-            scaler_path=paths.get("scaler"),
-            meta_learner_path=paths.get("meta"),
-            calibrator_path=paths.get("calibrator"),
-            inference_config_path=paths.get("inference_config"),
-            status="available",
-            trained_at=trained_at,
-            evaluated_at=trained_at,
+        return ModelMeta(
+            coin_id               = coin.id,
+            model_type            = vtype,
+            run_id                = v.get("run_id", run_id),
+            win_rate              = per_coin.get("winrate",     bs.get("mean_winrate")),
+            total_trades          = per_coin.get("total_trades"),
+            max_drawdown          = per_coin.get("dd_lev3x",   bs.get("mean_drawdown_lev3x")),
+            n_features            = v.get("n_features", 85),
+            model_path            = p.get("lstm") or p.get("lgbm"),
+            scaler_path           = p.get("scaler"),
+            meta_learner_path     = p.get("meta"),
+            calibrator_path       = p.get("calibrator"),
+            inference_config_path = p.get("inference_config"),
+            status                = "available",
+            trained_at            = trained_at,
+            evaluated_at          = trained_at,
         )
-        db.session.add(meta)
+
+    for coin in Coin.query.all():
+        ensemble_meta = _make_meta(coin, "ensemble")
+        db.session.add(ensemble_meta)
+        db.session.add(_make_meta(coin, "lgbm"))
+        db.session.add(_make_meta(coin, "lstm"))
         db.session.flush()
-        
-        # Insert ModelSelection
-        sel = ModelSelection(coin_id=coin.id, model_meta_id=meta.id)
+
+        # ModelSelection default → ensemble
+        sel = ModelSelection(coin_id=coin.id, model_meta_id=ensemble_meta.id)
         db.session.add(sel)
-    
+
     db.session.commit()
-    logger.info(f"[auto_seed] Seeded {len(symbols)} coins with model {run_id}")
+    logger.info(f"[auto_seed] Seeded {len(symbols)} coins × 3 model types (ensemble/lgbm/lstm)")
