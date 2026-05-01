@@ -79,6 +79,12 @@ class InferenceService:
             confidence = float(proba[pred_idx])
             direction  = LABEL_MAP_INV[pred_idx]
 
+            logger.debug(
+                f"[{symbol}] proba raw: SHORT={proba[0]:.4f} FLAT={proba[1]:.4f} LONG={proba[2]:.4f} "
+                f"→ max={confidence:.4f} ({direction}) threshold={threshold:.2f} "
+                f"→ {'PASS' if confidence >= threshold else 'FLAT (di bawah threshold)'}"
+            )
+
             if confidence < threshold:
                 direction = "FLAT"
 

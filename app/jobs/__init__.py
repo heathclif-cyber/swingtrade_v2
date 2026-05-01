@@ -56,10 +56,10 @@ def init_scheduler(app: Flask) -> None:
         replace_existing = True,
     )
 
-    # generate_signals — setiap 4 jam, mulai 15 menit setelah start
-    # (beri waktu fetch_latest selesai duluan)
+    # generate_signals — setiap 4 jam, mulai 16 menit setelah start
+    # (fetch_latest mulai di menit ke-15; 1 menit buffer agar data sudah ter-cache)
     from datetime import datetime, timezone, timedelta
-    first_signal_run = datetime.now(timezone.utc) + timedelta(minutes=15)
+    first_signal_run = datetime.now(timezone.utc) + timedelta(minutes=16)
 
     _scheduler.add_job(
         func          = lambda: generate_signals.run(app),
@@ -69,6 +69,7 @@ def init_scheduler(app: Flask) -> None:
         next_run_time = first_signal_run,
         replace_existing = True,
     )
+    logger.info(f"[scheduler] generate_signals pertama dijadwalkan: {first_signal_run.strftime('%H:%M:%S')} UTC")
 
     # update_metrics — setiap 6 jam, mulai segera
     _scheduler.add_job(

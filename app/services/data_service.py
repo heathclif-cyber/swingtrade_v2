@@ -187,6 +187,19 @@ class InferenceDataService:
         df_1h = _parse_klines(raw_1h, "1h")
         df_1h = df_1h[~df_1h.index.duplicated(keep="first")].sort_index()
 
+        # ── validasi kualitas 1h klines ──────────────────────────────────────
+        n_invalid_price = (df_1h["1h_close"] <= 0).sum()
+        if n_invalid_price > 0:
+            logger.warning(f"[{symbol}] {n_invalid_price} bar dengan close price <= 0")
+        if len(df_1h) > 1:
+            gaps = df_1h.index.to_series().diff().dropna()
+            large_gaps = gaps[gaps > pd.Timedelta(hours=2)]
+            if not large_gaps.empty:
+                logger.warning(
+                    f"[{symbol}] {len(large_gaps)} gap timestamp di 1h klines "
+                    f"(terbesar: {large_gaps.max()})"
+                )
+
         # ── 4h context (aligned ke index H1 via ffill) ───────────────────────
         n_4h = n_bars // 4 + 20
         start_4h = now_ms - n_4h * INTERVAL_MS["4h"]
@@ -256,6 +269,29 @@ class InferenceDataService:
 
         # ── long_short_ratio = 0 (by design — lihat arsitektur §5.2) ─────────
         feat_df["long_short_ratio"] = 0.0
+
+        # ── distribusi fitur kunci (Fix 3 audit) ─────────────────────────────
+        for feat in ("close", "atr_14_h1", "volume"):
+            if feat in feat_df.columns:
+                s = feat_df[feat].dropna()
+                logger.debug(
+                    f"[{symbol}] feat/{feat}: "
+                    f"mean={s.mean():.4g} std={s.std():.4g} "
+                    f"min={s.min():.4g} max={s.max():.4g} "
+                    f"nan={feat_df[feat].isna().sum()}"
+                )
+        nan_rate = feat_df[FEATURE_COLS_V3].isna().mean().mean()
+        if nan_rate > 0.10:
+            top_nan = (
+                feat_df[FEATURE_COLS_V3].isna().mean()
+                .pipe(lambda s: s[s > 0.10])
+                .sort_values(ascending=False)
+                .head(5)
+            )
+            logger.warning(
+                f"[{symbol}] NaN rate tinggi ({nan_rate:.1%}) pada fitur — "
+                f"top: {top_nan.to_dict()}"
+            )
 
         # ── validasi kolom ────────────────────────────────────────────────────
         missing = [c for c in FEATURE_COLS_V3 if c not in feat_df.columns]
