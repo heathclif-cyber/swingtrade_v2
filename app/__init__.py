@@ -3,6 +3,7 @@ import os
 
 from flask import Flask
 from dotenv import load_dotenv
+from sqlalchemy import text
 from app.extensions import db
 
 load_dotenv()
@@ -53,6 +54,9 @@ def _init_extensions(app: Flask) -> None:
         # import semua models agar SQLAlchemy tahu tabel yang ada
         import app.models  # noqa: F401
         db.create_all()
+
+        # Jalankan migration untuk menambah kolom baru ke tabel existing
+        _run_migrations(app)
         
         # Auto-seed if database is empty, else ensure model variants exist
         from app.models.coin import Coin
@@ -81,6 +85,52 @@ def _register_blueprints(app: Flask) -> None:
     # Register WITA timezone filter for Jinja templates
     from app.extensions import wita_format
     app.jinja_env.filters["wita_fmt"] = wita_format
+
+
+def _run_migrations(app: Flask) -> None:
+    """Tambahkan kolom baru ke tabel existing jika belum ada.
+    
+    db.create_all() hanya membuat tabel baru, bukan menambah kolom
+    ke tabel yang sudah ada. Fungsi ini menjalankan ALTER TABLE
+    untuk kolom-kolom yang ditambahkan setelah deploy awal.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    migrations = [
+        ("signal", "h4_swing_high", "DOUBLE PRECISION"),
+        ("signal", "h4_swing_low",  "DOUBLE PRECISION"),
+        ("trade",  "h4_swing_high", "DOUBLE PRECISION"),
+        ("trade",  "h4_swing_low",  "DOUBLE PRECISION"),
+    ]
+    
+    # Deteksi tipe database
+    is_sqlite = "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    
+    for table, column, col_type in migrations:
+        try:
+            if is_sqlite:
+                # SQLite tidak support IF NOT EXISTS untuk ALTER TABLE
+                # Cek keberadaan kolom lewat PRAGMA
+                pragma = db.session.execute(
+                    text(f"PRAGMA table_info({table})")
+                ).fetchall()
+                existing_cols = [row[1] for row in pragma]
+                if column in existing_cols:
+                    continue
+                db.session.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+                )
+            else:
+                # PostgreSQL support IF NOT EXISTS
+                db.session.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {col_type}")
+                )
+            db.session.commit()
+            logger.info(f"[migration] Kolom {table}.{column} berhasil ditambahkan")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"[migration] Gagal tambah {table}.{column}: {e}")
 
 
 def _init_scheduler(app: Flask) -> None:

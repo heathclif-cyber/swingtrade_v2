@@ -10,7 +10,12 @@
       "Bash(python -m deploy.seed_db)",
       "Bash(python -c \"import apscheduler; print\\(apscheduler.__version__\\)\")",
       "Bash(curl -s http://localhost:5001/api/health)",
-      "Bash(python -m json.tool)"
+      "Bash(python -m json.tool)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(git rm *)"
     ]
   }
 }
