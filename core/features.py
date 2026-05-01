@@ -1131,11 +1131,11 @@ def engineer_features(
 
     # ── 7. H4 Swing Points (untuk labeling) ───────────────────────────────────
     # Resample kembali ke H4 untuk mendapatkan window asli 4-jaman (menghindari duplikasi akibat ffill di H1)
-    # Ini memastikan lookback=3 berarti 3 candle H4 (12 jam), bukan 3 bar H1 (3 jam).
+    # Ini memastikan lookback=5 berarti 5 candle H4 (20 jam), bukan 5 bar H1 (5 jam).
     h4_h_native = h4_h.resample("4h").max()
     h4_l_native = h4_l.resample("4h").min()
 
-    h4_sh_raw, h4_sl_raw = detect_h4_swing_points(h4_h_native, h4_l_native, lookback=3)
+    h4_sh_raw, h4_sl_raw = detect_h4_swing_points(h4_h_native, h4_l_native, lookback=5)
     h4_swing_highs, h4_swing_lows = get_nearest_swing_levels(
         h4_swing_highs = h4_sh_raw,
         h4_swing_lows  = h4_sl_raw,
