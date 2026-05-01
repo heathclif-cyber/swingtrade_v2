@@ -56,6 +56,8 @@
           <th class="px-4 py-2 text-right">Entry</th>
           <th class="px-4 py-2 text-right">TP</th>
           <th class="px-4 py-2 text-right">SL</th>
+          <th class="px-4 py-2 text-right">H4 High</th>
+          <th class="px-4 py-2 text-right">H4 Low</th>
         </tr>
       </thead>
       <tbody>
@@ -79,6 +81,12 @@
           </td>
           <td class="px-4 py-2 text-right font-mono text-red-400">
             {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+            {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+            {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -104,6 +112,8 @@
           <th class="px-4 py-2 text-right">Entry</th>
           <th class="px-4 py-2 text-right">TP</th>
           <th class="px-4 py-2 text-right">SL</th>
+          <th class="px-4 py-2 text-right">H4 High</th>
+          <th class="px-4 py-2 text-right">H4 Low</th>
           <th class="px-4 py-2 text-right">Bars</th>
           <th class="px-4 py-2 text-right">Aksi</th>
         </tr>
@@ -123,6 +133,12 @@
           <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(trade.entry_price) }}</td>
           <td class="px-4 py-2 text-right font-mono text-green-400">{{ '%.4f' | format(trade.tp_price or 0) }}</td>
           <td class="px-4 py-2 text-right font-mono text-red-400">{{ '%.4f' | format(trade.sl_price or 0) }}</td>
+          <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+            {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+            {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
+          </td>
           <td class="px-4 py-2 text-right text-gray-400">{{ trade.hold_bars or 0 }}</td>
           <td class="px-4 py-2 text-right">
             <button
