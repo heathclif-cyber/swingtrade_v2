@@ -306,14 +306,16 @@ def _auto_seed(app: Flask) -> None:
 
     for coin in Coin.query.all():
         ensemble_meta = _make_meta(coin, "ensemble")
+        lgbm_meta     = _make_meta(coin, "lgbm")
+        lstm_meta     = _make_meta(coin, "lstm")
         db.session.add(ensemble_meta)
-        db.session.add(_make_meta(coin, "lgbm"))
-        db.session.add(_make_meta(coin, "lstm"))
+        db.session.add(lgbm_meta)
+        db.session.add(lstm_meta)
         db.session.flush()
 
-        # ModelSelection default → ensemble
-        sel = ModelSelection(coin_id=coin.id, model_meta_id=ensemble_meta.id)
+        # ModelSelection default → lstm (bukan ensemble)
+        sel = ModelSelection(coin_id=coin.id, model_meta_id=lstm_meta.id)
         db.session.add(sel)
 
     db.session.commit()
-    logger.info(f"[auto_seed] Seeded {len(symbols)} coins × 3 model types (ensemble/lgbm/lstm)")
+    logger.info(f"[auto_seed] Seeded {len(symbols)} coins × 3 model types (default=lstm)")

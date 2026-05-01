@@ -91,6 +91,64 @@ def select_model():
     })
 
 
+@bp.post("/models/select-all")
+def select_all_models():
+    """
+    Bulk update: ganti model SEMUA coin aktif ke model_type + run_id yang sama.
+    Body JSON: {"model_type": "lstm", "run_id": "20260425_170250"}
+    """
+    from app.extensions import db, utcnow
+    from app.models.coin import Coin
+    from app.models.model_meta import ModelMeta
+    from app.models.model_selection import ModelSelection
+    from app.services.inference import InferenceService
+    from app.services.config_loader import get_n_features
+
+    data       = request.get_json(force=True)
+    model_type = data.get("model_type", "lstm")
+    run_id     = data.get("run_id")
+
+    if not run_id:
+        return jsonify({"error": "run_id wajib diisi"}), 400
+
+    nf = get_n_features()
+    coins = Coin.query.filter_by(status="active").all()
+    updated = 0
+    errors  = []
+
+    for coin in coins:
+        meta = ModelMeta.query.filter_by(
+            coin_id=coin.id, model_type=model_type, run_id=run_id
+        ).first()
+        if not meta:
+            errors.append(f"{coin.symbol}: ModelMeta {model_type}/{run_id} tidak ditemukan")
+            continue
+        if meta.n_features != nf:
+            errors.append(f"{coin.symbol}: n_features mismatch ({meta.n_features} vs {nf})")
+            continue
+
+        sel = ModelSelection.query.filter_by(coin_id=coin.id).first()
+        if sel:
+            sel.model_meta_id = meta.id
+            sel.selected_at   = utcnow()
+        else:
+            sel = ModelSelection(coin_id=coin.id, model_meta_id=meta.id)
+            db.session.add(sel)
+        updated += 1
+
+    db.session.commit()
+    InferenceService.clear_cache(run_id)
+
+    return jsonify({
+        "status":     "ok",
+        "updated":    updated,
+        "total":      len(coins),
+        "model_type": model_type,
+        "run_id":     run_id,
+        "errors":     errors,
+    })
+
+
 @bp.get("/api/models/available")
 def available_models():
     from app.services.model_registry import load_registry

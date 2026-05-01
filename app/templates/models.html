@@ -48,6 +48,36 @@
   </table>
 </div>
 
+<!-- Bulk Select -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Bulk Select — Terapkan ke Semua Coin</h2>
+  <div class="px-4 py-4 flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Model Type</label>
+      <select id="bulk-type" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
+        {% for v in registry_versions %}
+        <option value="{{ v.model_type }}" {% if v.model_type == 'lstm' %}selected{% endif %}>
+          {{ v.model_type }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Run ID</label>
+      <select id="bulk-run" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono">
+        {% for v in registry_versions %}
+        <option value="{{ v.run_id }}">{{ v.run_id }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button onclick="selectAll()"
+      class="bg-blue-700 hover:bg-blue-600 text-sm rounded px-4 py-1.5 font-medium">
+      Terapkan ke Semua Coin
+    </button>
+    <div id="bulk-result" class="text-xs text-gray-400 hidden"></div>
+  </div>
+</div>
+
 <!-- Model Selection per Coin -->
 <div class="bg-gray-900 rounded-lg border border-gray-800">
   <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Active Model per Coin</h2>
@@ -117,6 +147,43 @@ function selectModel(symbol, val) {
     } else {
       alert('Error: ' + (d.error || JSON.stringify(d)));
     }
+  });
+}
+
+function selectAll() {
+  const model_type = document.getElementById('bulk-type').value;
+  const run_id     = document.getElementById('bulk-run').value;
+  const resultEl   = document.getElementById('bulk-result');
+
+  if (!confirm('Terapkan ' + model_type + ' / ' + run_id + ' ke SEMUA coin aktif?')) return;
+
+  resultEl.textContent = 'Memproses...';
+  resultEl.classList.remove('hidden', 'text-green-400', 'text-red-400');
+  resultEl.classList.add('text-gray-400');
+
+  fetch('/models/select-all', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({model_type, run_id}),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      let msg = `✓ ${d.updated}/${d.total} coin diperbarui ke ${d.model_type}`;
+      if (d.errors && d.errors.length) msg += ' | ⚠ ' + d.errors.join(', ');
+      resultEl.textContent = msg;
+      resultEl.classList.replace('text-gray-400', d.errors.length ? 'text-yellow-400' : 'text-green-400');
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      resultEl.textContent = 'Error: ' + (d.error || JSON.stringify(d));
+      resultEl.classList.replace('text-gray-400', 'text-red-400');
+    }
+    resultEl.classList.remove('hidden');
+  })
+  .catch(e => {
+    resultEl.textContent = 'Network error: ' + e;
+    resultEl.classList.replace('text-gray-400', 'text-red-400');
+    resultEl.classList.remove('hidden');
   });
 }
 </script>
