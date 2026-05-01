@@ -23,7 +23,15 @@ import numpy as np
 import pandas as pd
 
 from core.utils import setup_logger, ensure_utc_index
-from config import SYNTHETIC_OI_CVD_WINDOW, SYNTHETIC_OI_NORM_WINDOW
+
+try:
+    from app.services.config_loader import get_feature_engineering_config as _get_fe_cfg
+    _fe = _get_fe_cfg()
+    SYNTHETIC_OI_CVD_WINDOW  = _fe.get("synthetic_oi_cvd_window",  24)
+    SYNTHETIC_OI_NORM_WINDOW = _fe.get("synthetic_oi_norm_window", 168)
+except Exception:
+    SYNTHETIC_OI_CVD_WINDOW  = 24
+    SYNTHETIC_OI_NORM_WINDOW = 168
 
 logger = setup_logger("features")
 

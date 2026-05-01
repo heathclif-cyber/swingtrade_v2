@@ -98,6 +98,11 @@ def get_n_features() -> int:
     return len(get_feature_cols())
 
 
+def get_feature_engineering_config() -> dict:
+    """Return parameter feature engineering (synthetic OI, dll.)."""
+    return get_inference_config().get("feature_engineering", {})
+
+
 def reload_cache() -> None:
     """Force reload semua cache — gunakan setelah replace file model."""
     global _config_cache, _feature_cols_cache

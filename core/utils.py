@@ -83,7 +83,7 @@ def get_raw_path(data_type: str, symbol: str, interval: str = None) -> Path:
       macro_btc_dom→ data/raw/macro/btc_dominance.parquet
       macro_fear_greed → data/raw/macro/fear_greed_index.parquet
     """
-    from config import RAW_DIR
+    RAW_DIR = Path(__file__).parent.parent / "data" / "raw"
     if data_type == "klines":
         return RAW_DIR / "klines" / symbol / f"{interval}_all.parquet"
     elif data_type == "funding_rate":

@@ -242,6 +242,10 @@
     "sl_atr_mult": 1.0,
     "max_holding_bars": 48
   },
+  "feature_engineering": {
+    "synthetic_oi_cvd_window":  24,
+    "synthetic_oi_norm_window": 168
+  },
   "symbol_map": {
     "SOLUSDT": 0, "ETHUSDT": 1, "BNBUSDT": 2, "XRPUSDT": 3, "DOGEUSDT": 4,
     "TONUSDT": 5, "ADAUSDT": 6, "TRXUSDT": 7, "1000SHIBUSDT": 8, "AVAXUSDT": 9,

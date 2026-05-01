@@ -16,13 +16,12 @@ import torch.nn as nn
 
 
 def _default_n_features() -> int:
-    """Lazy: coba config_loader (web app), fallback ke config.py (training)."""
+    """Lazy: coba config_loader (web app), fallback ke 85 (default training)."""
     try:
         from app.services.config_loader import get_n_features
         return get_n_features()
     except Exception:
-        from config import FEATURE_COLS_V3
-        return len(FEATURE_COLS_V3)
+        return 85
 
 
 # ─── TradingLSTM ─────────────────────────────────────────────────────────────

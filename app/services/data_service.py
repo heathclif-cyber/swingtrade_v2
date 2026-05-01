@@ -29,8 +29,9 @@ from requests.packages import urllib3  # type: ignore
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-from config import BINANCE_BASE_URL
 from app.services.config_loader import get_feature_cols, get_symbol_map, get_lstm_seq_len
+
+BINANCE_BASE_URL = os.getenv("BINANCE_BASE_URL", "https://fapi.binance.com")
 from core.binance_client import BinanceClient
 from core.features import engineer_features
 
