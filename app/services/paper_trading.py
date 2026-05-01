@@ -34,10 +34,7 @@ VCB_ENABLED             = os.getenv("VCB_ENABLED", "true").lower() == "true"
 VCB_LOOKBACK_BARS       = int(os.getenv("VCB_LOOKBACK_BARS", 24))
 VCB_ATR_MULTIPLIER      = float(os.getenv("VCB_ATR_MULTIPLIER", 2.5))
 
-# ── Swing labeling params (dari inference_config["fallback_tp_sl"]) ───────────
-SWING_MIN_RR  = 1.5
-SWING_MIN_TP  = 1.5   # × ATR
-SWING_MAX_SL  = 3.0   # × ATR
+# Konstanta SWING_MIN_RR dll telah dihapus karena kita memakai murni Swing H4.
 
 
 class PaperTradingEngine:
@@ -186,34 +183,25 @@ class PaperTradingEngine:
         atr: float,
         last_row,
     ) -> tuple[Optional[float], Optional[float]]:
-        """Swing-based TP/SL. Fallback ke fixed ATR jika swing tidak valid."""
+        """Swing-based TP/SL murni. Fallback ke fixed ATR jika swing tidak tersedia."""
         if last_row is not None and atr > 0:
             sh = float(last_row.get("h4_swing_high", 0) or 0)
             sl_lvl = float(last_row.get("h4_swing_low", 0) or 0)
 
+            # Langsung terapkan Swing Level tanpa validasi ATR Mult
             if direction == "LONG" and sh > entry and sl_lvl < entry:
-                tp_dist = sh - entry
-                sl_dist = entry - sl_lvl
-                if (tp_dist >= SWING_MIN_TP * atr
-                        and sl_dist <= SWING_MAX_SL * atr
-                        and sl_dist > 0
-                        and tp_dist / sl_dist >= SWING_MIN_RR):
-                    return sh, sl_lvl
+                return sh, sl_lvl
 
             if direction == "SHORT" and sl_lvl < entry and sh > entry:
-                tp_dist = entry - sl_lvl
-                sl_dist = sh - entry
-                if (tp_dist >= SWING_MIN_TP * atr
-                        and sl_dist <= SWING_MAX_SL * atr
-                        and sl_dist > 0
-                        and tp_dist / sl_dist >= SWING_MIN_RR):
-                    return sl_lvl, sh
+                return sl_lvl, sh
 
-        # Fallback ke fixed ATR
+        # Fallback ke fixed ATR (nilai fallback ini sekarang terhubung dinamis ke JSON config)
         if atr <= 0:
             return None, None
-        tp_mult = self._fallback.get("tp_atr_mult", 2.0)
-        sl_mult = self._fallback.get("sl_atr_mult", 1.0)
+            
+        tp_mult = self._fallback.get("tp_atr_mult", 3.0) 
+        sl_mult = self._fallback.get("sl_atr_mult", 1.5)
+        
         if direction == "LONG":
             return entry + tp_mult * atr, entry - sl_mult * atr
         else:
