@@ -24,10 +24,14 @@
         <td class="px-4 py-2 text-gray-300">{{ v.model_type }}</td>
         <td class="px-4 py-2 text-right">{{ v.n_features }}</td>
         <td class="px-4 py-2 text-right text-green-400">
-          {% if v.backtest_summary %}{{ '%.1f' | format(v.backtest_summary.mean_winrate * 100) }}%{% else %}—{% endif %}
+          {% if v.backtest_summary %}
+            {{ '%.1f' | format(v.backtest_summary.mean_winrate * 100) }}%{% if v.backtest_summary.is_avg_fallback %}<span class="text-gray-500 text-xs" title="Rata-rata dari backtest_per_coin">†</span>{% endif %}
+          {% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right text-red-400">
-          {% if v.backtest_summary %}{{ '%.1f' | format(v.backtest_summary.mean_drawdown_lev3x * 100) }}%{% else %}—{% endif %}
+          {% if v.backtest_summary %}
+            {{ '%.1f' | format(v.backtest_summary.mean_drawdown_lev3x * 100) }}%{% if v.backtest_summary.is_avg_fallback %}<span class="text-gray-500 text-xs" title="Rata-rata dari backtest_per_coin">†</span>{% endif %}
+          {% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-xs text-gray-500">{{ v.trained_at }}</td>
         <td class="px-4 py-2">
@@ -77,19 +81,39 @@
         <th class="px-4 py-2 text-left">Coin</th>
         <th class="px-4 py-2 text-left">Current Model</th>
         <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-right">Trades</th>
+        <th class="px-4 py-2 text-right">Total PnL</th>
+        <th class="px-4 py-2 text-right">Max DD ($)</th>
         <th class="px-4 py-2 text-left">Selected At</th>
         <th class="px-4 py-2 text-left">Ganti Model</th>
       </tr>
     </thead>
     <tbody>
-      {% for coin, sel, meta in rows %}
+      {% for coin, sel, meta, perf in rows %}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-3 font-mono text-xs font-medium">{{ coin.symbol }}</td>
         <td class="px-4 py-3 text-xs text-gray-300">
           {% if meta %}{{ meta.model_type }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-right text-xs">
-          {% if meta and meta.win_rate %}{{ '%.1f' | format(meta.win_rate * 100) }}%{% else %}—{% endif %}
+          {% if perf and perf.win_rate %}
+            <span class="{% if perf.win_rate >= 0.5 %}text-green-400{% else %}text-yellow-400{% endif %}">
+              {{ '%.1f' | format(perf.win_rate * 100) }}%
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-xs text-gray-400">
+          {{ perf.total_trades if perf and perf.total_trades else '—' }}
+        </td>
+        <td class="px-4 py-3 text-right text-xs">
+          {% if perf and perf.total_pnl is not none %}
+            <span class="{% if perf.total_pnl >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+              {{ '%+.2f' | format(perf.total_pnl) }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right text-xs text-red-400">
+          {% if perf and perf.max_drawdown %}{{ '%.2f' | format(perf.max_drawdown) }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-xs text-gray-500">
           {{ sel.selected_at | wita_fmt('%Y-%m-%d %H:%M') if sel else '—' }}

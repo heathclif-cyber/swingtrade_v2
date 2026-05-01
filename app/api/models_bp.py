@@ -9,14 +9,36 @@ def models():
     from app.models.coin import Coin
     from app.models.model_meta import ModelMeta
     from app.models.model_selection import ModelSelection
-    from app.services.model_registry import load_registry
+    from app.models.performance_summary import PerformanceSummary
+    from app.services.model_registry import load_registry, load_inference_config
+    from sqlalchemy import and_
 
     registry_versions = load_registry()
 
+    # Rec #2: inject fallback backtest_summary untuk lgbm/lstm dari rata-rata backtest_per_coin
+    cfg = load_inference_config()
+    bpc = cfg.get("backtest_per_coin", {})
+    if bpc:
+        vals = list(bpc.values())
+        mean_wr = sum(v["winrate"] for v in vals) / len(vals)
+        mean_dd = sum(v["dd_lev3x"] for v in vals) / len(vals)
+        for v in registry_versions:
+            if not v.get("backtest_summary"):
+                v["backtest_summary"] = {
+                    "mean_winrate":        round(mean_wr, 4),
+                    "mean_drawdown_lev3x": round(mean_dd, 4),
+                    "is_avg_fallback":     True,
+                }
+
     rows = (
-        db.session.query(Coin, ModelSelection, ModelMeta)
+        db.session.query(Coin, ModelSelection, ModelMeta, PerformanceSummary)
         .join(ModelSelection, ModelSelection.coin_id == Coin.id, isouter=True)
         .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id, isouter=True)
+        .join(
+            PerformanceSummary,
+            and_(PerformanceSummary.coin_id == Coin.id, PerformanceSummary.period == "all"),
+            isouter=True,
+        )
         .filter(Coin.status == "active")
         .order_by(Coin.symbol)
         .all()
