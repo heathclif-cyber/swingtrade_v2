@@ -12,6 +12,7 @@ Guard wajib: model_meta.n_features == get_n_features() dari config_loader.
 
 import gc
 import logging
+import math
 from typing import Optional
 
 import joblib
@@ -85,7 +86,6 @@ class InferenceService:
                 direction = "FLAT"
 
             last = features_df.iloc[-1]
-            import math
             h4_sh_val = last.get("h4_swing_high")
             h4_sl_val = last.get("h4_swing_low")
             h4_sh = float(h4_sh_val) if h4_sh_val is not None and not math.isnan(h4_sh_val) else 0.0

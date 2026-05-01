@@ -10,7 +10,7 @@ Fallback ke fixed ATR multiplier dari inference_config["fallback_tp_sl"].
 """
 
 import logging
-from datetime import datetime, timezone
+import math
 from typing import Optional
 
 import numpy as np
@@ -93,7 +93,6 @@ class PaperTradingEngine:
         lev   = self._leverage
         fee   = 2 * self._fee_per_side * modal
 
-        import math
         sh_val = last_row.get("h4_swing_high") if last_row is not None else None
         sl_val = last_row.get("h4_swing_low") if last_row is not None else None
         
@@ -191,7 +190,6 @@ class PaperTradingEngine:
     ) -> tuple[Optional[float], Optional[float]]:
         """Swing-based TP/SL murni. Fallback ke fixed ATR jika swing tidak tersedia."""
         if last_row is not None and atr > 0:
-            import math
             sh_val = last_row.get("h4_swing_high")
             sl_val = last_row.get("h4_swing_low")
             sh = float(sh_val) if sh_val is not None and not math.isnan(sh_val) else 0.0
