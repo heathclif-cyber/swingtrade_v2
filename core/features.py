@@ -1130,7 +1130,12 @@ def engineer_features(
     h4_cvd_raw  = cvd_series.resample("4h").last()
 
     # ── 7. H4 Swing Points (untuk labeling) ───────────────────────────────────
-    h4_sh_raw, h4_sl_raw = detect_h4_swing_points(h4_h, h4_l, lookback=3)
+    # Resample kembali ke H4 untuk mendapatkan window asli 4-jaman (menghindari duplikasi akibat ffill di H1)
+    # Ini memastikan lookback=3 berarti 3 candle H4 (12 jam), bukan 3 bar H1 (3 jam).
+    h4_h_native = h4_h.resample("4h").max()
+    h4_l_native = h4_l.resample("4h").min()
+
+    h4_sh_raw, h4_sl_raw = detect_h4_swing_points(h4_h_native, h4_l_native, lookback=3)
     h4_swing_highs, h4_swing_lows = get_nearest_swing_levels(
         h4_swing_highs = h4_sh_raw,
         h4_swing_lows  = h4_sl_raw,
