@@ -68,19 +68,21 @@ def trade_detail(trade_id: int):
     from app.models.trade import Trade
     t = Trade.query.get_or_404(trade_id)
     return jsonify({
-        "id":          t.id,
-        "direction":   t.direction,
-        "entry_price": t.entry_price,
-        "exit_price":  t.exit_price,
-        "tp_price":    t.tp_price,
-        "sl_price":    t.sl_price,
-        "pnl_net":     t.pnl_net,
-        "pnl_pct":     t.pnl_pct,
-        "status":      t.status,
-        "exit_reason": t.exit_reason,
-        "hold_bars":   t.hold_bars,
-        "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
-        "closed_at":   t.closed_at.isoformat() if t.closed_at else None,
+        "id":            t.id,
+        "direction":     t.direction,
+        "entry_price":   t.entry_price,
+        "exit_price":    t.exit_price,
+        "tp_price":      t.tp_price,
+        "sl_price":      t.sl_price,
+        "h4_swing_high": t.h4_swing_high,
+        "h4_swing_low":  t.h4_swing_low,
+        "pnl_net":       t.pnl_net,
+        "pnl_pct":       t.pnl_pct,
+        "status":        t.status,
+        "exit_reason":   t.exit_reason,
+        "hold_bars":     t.hold_bars,
+        "opened_at":     t.opened_at.isoformat() if t.opened_at else None,
+        "closed_at":     t.closed_at.isoformat() if t.closed_at else None,
     })
 
 

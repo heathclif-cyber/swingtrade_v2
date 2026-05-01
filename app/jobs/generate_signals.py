@@ -111,6 +111,9 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     )
 
     # Simpan Signal
+    swing_high = result.get("h4_swing_high") or 0.0
+    swing_low  = result.get("h4_swing_low")  or 0.0
+
     signal = Signal(
         coin_id          = coin.id,
         model_meta_id    = meta.id,
@@ -118,14 +121,16 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
         confidence       = confidence,
         entry_price      = entry,
         atr_at_signal    = atr,
+        h4_swing_high    = swing_high if swing_high > 0 else None,
+        h4_swing_low     = swing_low  if swing_low  > 0 else None,
         tp_price         = None,
         sl_price         = None,
         timeframe        = "1h",
         feature_snapshot = json.dumps({
             "close":          entry,
             "atr":            atr,
-            "h4_swing_high":  result.get("h4_swing_high"),
-            "h4_swing_low":   result.get("h4_swing_low"),
+            "h4_swing_high":  swing_high,
+            "h4_swing_low":   swing_low,
             "confidence":     confidence,
         }),
         signal_time = utcnow(),

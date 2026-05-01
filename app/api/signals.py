@@ -50,13 +50,15 @@ def signal_detail(signal_id: int):
             pass
 
     return jsonify({
-        "id":         s.id,
-        "direction":  s.direction,
-        "confidence": s.confidence,
-        "entry":      s.entry_price,
-        "tp":         s.tp_price,
-        "sl":         s.sl_price,
-        "atr":        s.atr_at_signal,
-        "time":       s.signal_time.isoformat() if s.signal_time else None,
-        "snapshot":   snapshot,
+        "id":            s.id,
+        "direction":     s.direction,
+        "confidence":    s.confidence,
+        "entry":         s.entry_price,
+        "tp":            s.tp_price,
+        "sl":            s.sl_price,
+        "atr":           s.atr_at_signal,
+        "h4_swing_high": s.h4_swing_high,
+        "h4_swing_low":  s.h4_swing_low,
+        "time":          s.signal_time.isoformat() if s.signal_time else None,
+        "snapshot":      snapshot,
     })

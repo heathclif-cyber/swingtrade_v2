@@ -36,13 +36,14 @@
         <th class="px-4 py-3 text-right">Entry</th>
         <th class="px-4 py-3 text-right">TP</th>
         <th class="px-4 py-3 text-right">SL</th>
+        <th class="px-4 py-3 text-right">H4 High</th>
+        <th class="px-4 py-3 text-right">H4 Low</th>
         <th class="px-4 py-3 text-right">ATR</th>
       </tr>
     </thead>
     <tbody>
       {% for sig in pagination.items %}
-      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer"
-          onclick="fetch('/paper/signals/{{ sig.id }}').then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2)))">
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-2 text-xs text-gray-500">
           {{ sig.signal_time | wita_fmt('%m-%d %H:%M') }}
         </td>
@@ -68,6 +69,12 @@
         <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
           {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
         </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+          {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+          {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
+        </td>
         <td class="px-4 py-2 text-right text-xs text-gray-500">
           {% if sig.atr_at_signal %}
             {% if sig.atr_at_signal < 0.0001 %}{{ '%.3e' | format(sig.atr_at_signal) }}{% else %}{{ '%.4f' | format(sig.atr_at_signal) }}{% endif %}
@@ -75,7 +82,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
+      <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
       {% endfor %}
     </tbody>
   </table>

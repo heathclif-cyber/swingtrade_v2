@@ -13,6 +13,8 @@ class Signal(db.Model):
     tp_price         = db.Column(db.Float)
     sl_price         = db.Column(db.Float)
     atr_at_signal    = db.Column(db.Float)
+    h4_swing_high    = db.Column(db.Float)
+    h4_swing_low     = db.Column(db.Float)
     timeframe        = db.Column(db.Text, default="1h")
     feature_snapshot = db.Column(db.Text)                   # JSON string
     signal_time      = db.Column(db.DateTime(timezone=True), nullable=False)

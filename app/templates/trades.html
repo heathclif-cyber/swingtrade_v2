@@ -62,6 +62,8 @@
         <th class="px-4 py-3 text-left">Dir</th>
         <th class="px-4 py-3 text-right">Entry</th>
         <th class="px-4 py-3 text-right">Exit</th>
+        <th class="px-4 py-3 text-right">H4 High</th>
+        <th class="px-4 py-3 text-right">H4 Low</th>
         <th class="px-4 py-3 text-right">PnL</th>
         <th class="px-4 py-3 text-right">PnL %</th>
         <th class="px-4 py-3 text-left">Reason</th>
@@ -88,6 +90,12 @@
         <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(trade.entry_price) }}</td>
         <td class="px-4 py-2 text-right font-mono text-xs">
           {% if trade.exit_price %}{{ '%.4f' | format(trade.exit_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+          {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+          {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs font-medium
           {% if trade.status == 'open' %}text-gray-400
@@ -122,7 +130,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
+      <tr><td colspan="12" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
       {% endfor %}
     </tbody>
   </table>

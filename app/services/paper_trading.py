@@ -93,19 +93,24 @@ class PaperTradingEngine:
         lev   = self._leverage
         fee   = 2 * self._fee_per_side * modal
 
+        sh = float(last_row.get("h4_swing_high", 0) or 0) if last_row is not None else None
+        sl_lvl = float(last_row.get("h4_swing_low", 0) or 0) if last_row is not None else None
+
         trade = Trade(
-            signal_id   = signal_row.id,
-            coin_id     = coin_id,
-            direction   = direction,
-            entry_price = entry_price,
-            tp_price    = tp,
-            sl_price    = sl,
-            quantity    = modal,
-            leverage    = lev,
-            fee_total   = fee,
-            status      = "open",
-            opened_at   = utcnow(),
-            hold_bars   = 0,
+            signal_id     = signal_row.id,
+            coin_id       = coin_id,
+            direction     = direction,
+            entry_price   = entry_price,
+            tp_price      = tp,
+            sl_price      = sl,
+            h4_swing_high = sh    if sh     and sh     > 0 else None,
+            h4_swing_low  = sl_lvl if sl_lvl and sl_lvl > 0 else None,
+            quantity      = modal,
+            leverage      = lev,
+            fee_total     = fee,
+            status        = "open",
+            opened_at     = utcnow(),
+            hold_bars     = 0,
         )
         db.session.add(trade)
         db.session.commit()

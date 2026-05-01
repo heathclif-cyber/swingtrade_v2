@@ -96,6 +96,8 @@
         <th class="px-4 py-2 text-right">Entry</th>
         <th class="px-4 py-2 text-right">TP</th>
         <th class="px-4 py-2 text-right">SL</th>
+        <th class="px-4 py-2 text-right">H4 High</th>
+        <th class="px-4 py-2 text-right">H4 Low</th>
       </tr>
     </thead>
     <tbody>
@@ -117,6 +119,12 @@
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
           {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
+          {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
+          {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
         </td>
       </tr>
       {% endfor %}
