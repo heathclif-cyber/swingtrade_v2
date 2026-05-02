@@ -296,7 +296,7 @@ class PaperTradingEngine:
         trade.exit_reason = reason
         trade.pnl_gross   = round(pnl_gross, 4)
         trade.pnl_net     = round(pnl_net, 4)
-        trade.pnl_pct     = round(pnl_pct * lev * 100, 2)
+        trade.pnl_pct     = round(pnl_pct * 100, 2)
         trade.status      = "closed"
         trade.closed_at   = utcnow()
 

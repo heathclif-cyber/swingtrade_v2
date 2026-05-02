@@ -162,7 +162,7 @@ class TelegramService:
 <b>Entry:</b> {trade.entry_price:.6f}
 <b>Exit:</b> {trade.exit_price:.6f if trade.exit_price else 'N/A'}
 
-<b>PnL:</b> {trade.pnl_net:.2f} ({trade.pnl_pct:.2%})
+<b>PnL:</b> {trade.pnl_net:.2f} ({trade.pnl_pct:.1f}%)
 <b>Hold:</b> {trade.hold_bars} bars
 
 <b>Closed (WITA):</b> {_format_wita(trade.closed_at)}
