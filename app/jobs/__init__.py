@@ -10,6 +10,7 @@ import os
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from flask import Flask
 
 logger = logging.getLogger(__name__)
@@ -56,20 +57,16 @@ def init_scheduler(app: Flask) -> None:
         replace_existing = True,
     )
 
-    # generate_signals — setiap 4 jam, mulai 16 menit setelah start
-    # (fetch_latest mulai di menit ke-15; 1 menit buffer agar data sudah ter-cache)
-    from datetime import datetime, timezone, timedelta
-    first_signal_run = datetime.now(timezone.utc) + timedelta(minutes=16)
-
+    # generate_signals — setiap jam lewat 5 menit (HH:05)
+    # Beri waktu 5 menit setelah jam penuh agar candle 1h terbaru sudah settle dan fetch_latest sempat meng-cache data
     _scheduler.add_job(
         func          = lambda: generate_signals.run(app),
-        trigger       = IntervalTrigger(hours=signal_interval),
+        trigger       = CronTrigger(minute=5),
         id            = "generate_signals",
         name          = "Generate Trading Signals",
-        next_run_time = first_signal_run,
         replace_existing = True,
     )
-    logger.info(f"[scheduler] generate_signals pertama dijadwalkan: {first_signal_run.strftime('%H:%M:%S')} UTC")
+    logger.info(f"[scheduler] generate_signals dijadwalkan setiap jam lewat 5 menit (HH:05)")
 
     # update_metrics — setiap 6 jam, mulai segera
     _scheduler.add_job(

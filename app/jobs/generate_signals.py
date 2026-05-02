@@ -1,7 +1,7 @@
 """
 app/jobs/generate_signals.py — Inference per koin → simpan Signal → proses paper trading.
 
-Dipanggil scheduler setiap 4 jam.
+Dipanggil scheduler setiap 1 jam.
 Serial per koin (bukan paralel) — RAM constraint 832 MB.
 gc.collect() setelah setiap koin untuk reclaim tensor memory.
 """
