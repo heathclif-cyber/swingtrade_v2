@@ -123,7 +123,7 @@ class InferenceService:
 
         lstm_model = scaler = lgbm_model = meta_learner = calibrator = None
 
-        if model_type in ("lstm", "ensemble") and getattr(meta, "model_path", None):
+        if (model_type == "lstm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
             lstm_model = load_lstm(
                 path        = resolve_path(meta.model_path),
                 n_features  = N_FEATURES,
@@ -138,12 +138,12 @@ class InferenceService:
             if getattr(meta, "scaler_path", None):
                 scaler = joblib.load(resolve_path(meta.scaler_path))
 
-        if model_type in ("lgbm", "ensemble") and getattr(meta, "model_path", None):
+        if (model_type == "lgbm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
             lgbm_path = resolve_path(meta.model_path).parent / "lgbm_baseline.pkl"
             if lgbm_path.exists():
                 lgbm_model = joblib.load(lgbm_path)
 
-        if model_type == "ensemble":
+        if model_type == "ensemble" or model_type.startswith("ensemble"):
             if getattr(meta, "meta_learner_path", None):
                 meta_path = resolve_path(meta.meta_learner_path)
                 if meta_path.exists():
