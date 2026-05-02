@@ -123,3 +123,24 @@ def close_trade(trade_id: int):
     db.session.commit()
 
     return jsonify({"status": "closed", "exit_price": close_price, "pnl_net": trade.pnl_net})
+
+
+@bp.post("/paper/trades/<int:trade_id>/delete")
+def delete_trade(trade_id: int):
+    from app.extensions import db
+    from app.models.trade import Trade
+
+    trade = Trade.query.get_or_404(trade_id)
+    db.session.delete(trade)
+    db.session.commit()
+    return jsonify({"status": "deleted", "id": trade_id})
+
+
+@bp.post("/paper/trades/delete-all")
+def delete_all_trades():
+    from app.extensions import db
+    from app.models.trade import Trade
+
+    deleted = Trade.query.delete()
+    db.session.commit()
+    return jsonify({"status": "deleted", "count": deleted})

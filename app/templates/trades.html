@@ -4,7 +4,17 @@
 
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-xl font-bold">Trades</h1>
-  <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
+  <div class="flex items-center gap-3">
+    <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
+    <button
+      hx-post="/paper/trades/delete-all"
+      hx-confirm="Hapus SEMUA trade? Tindakan ini tidak bisa dibatalkan."
+      hx-swap="none"
+      hx-on::after-request="window.location.reload()"
+      class="text-xs text-red-500 border border-red-800 rounded px-3 py-1 hover:bg-red-900/30">
+      Hapus Semua
+    </button>
+  </div>
 </div>
 
 <!-- Summary Cards -->
@@ -117,16 +127,26 @@
           </span>
         </td>
         <td class="px-4 py-2 text-right">
-          {% if trade.status == 'open' %}
-          <button
-            hx-post="/paper/trades/{{ trade.id }}/close"
-            hx-confirm="Tutup posisi ini?"
-            hx-swap="none"
-            hx-on::after-request="window.location.reload()"
-            class="text-xs text-red-400 border border-red-800 rounded px-2 py-0.5 hover:bg-red-900/30">
-            Close
-          </button>
-          {% endif %}
+          <div class="flex items-center justify-end gap-1">
+            {% if trade.status == 'open' %}
+            <button
+              hx-post="/paper/trades/{{ trade.id }}/close"
+              hx-confirm="Tutup posisi ini?"
+              hx-swap="none"
+              hx-on::after-request="window.location.reload()"
+              class="text-xs text-yellow-400 border border-yellow-800 rounded px-2 py-0.5 hover:bg-yellow-900/30">
+              Close
+            </button>
+            {% endif %}
+            <button
+              hx-post="/paper/trades/{{ trade.id }}/delete"
+              hx-confirm="Hapus trade ini permanen?"
+              hx-swap="none"
+              hx-on::after-request="window.location.reload()"
+              class="text-xs text-red-500 border border-red-900 rounded px-2 py-0.5 hover:bg-red-900/30">
+              Hapus
+            </button>
+          </div>
         </td>
       </tr>
       {% else %}
