@@ -50,11 +50,14 @@ def models():
         .all()
     )
 
+    available_types = sorted(set(m.model_type for m in available_metas))
+
     return render_template(
         "models.html",
         rows              = rows,
         registry_versions = registry_versions,
         available_metas   = available_metas,
+        available_types   = available_types,
     )
 
 

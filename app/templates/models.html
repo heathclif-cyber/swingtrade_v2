@@ -57,9 +57,9 @@
     <div>
       <label class="block text-xs text-gray-500 mb-1">Model Type</label>
       <select id="bulk-type" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
-        {% for v in registry_versions %}
-        <option value="{{ v.model_type }}" {% if v.model_type == 'lstm' %}selected{% endif %}>
-          {{ v.model_type }}
+        {% for mt in available_types %}
+        <option value="{{ mt }}" {% if mt == 'lstm' %}selected{% endif %}>
+          {{ mt }}
         </option>
         {% endfor %}
       </select>
