@@ -11,6 +11,7 @@ Fallback ke fixed ATR multiplier dari inference_config["fallback_tp_sl"].
 
 import logging
 import math
+import os
 from typing import Optional
 
 import numpy as np
@@ -32,8 +33,8 @@ class PaperTradingEngine:
 
         self._confidence_threshold  = inf.get("confidence_threshold_entry", 0.50)
         self._max_holding_bars      = inf.get("max_hold_bars", 48)
-        self._modal_per_trade       = risk.get("modal_per_trade", 1000.0)
-        self._leverage              = risk.get("leverage_recommended", 3.0)
+        self._modal_per_trade       = float(os.getenv("PAPER_MODAL")    or risk.get("modal_per_trade", 100.0))
+        self._leverage              = float(os.getenv("PAPER_LEVERAGE") or risk.get("leverage_recommended", 5.0))
         self._fee_per_side          = risk.get("fee_per_side", 0.0004)
         self._same_dir_cooldown_hrs = self._config.get("same_dir_cooldown_hours", 4)
         self._vcb_enabled           = vcb.get("enabled", True)
@@ -172,10 +173,20 @@ class PaperTradingEngine:
 
             if exit_price is not None:
                 self._close_trade(trade, exit_price, exit_reason)
-                closed.append(trade)
+                try:
+                    db.session.commit()
+                    closed.append(trade)
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"[PT] Gagal commit penutupan trade id={trade.id}: {e}", exc_info=True)
+                    continue
 
-        if closed:
+        # Commit sisa update hold_bars untuk trade yang tidak ditutup
+        try:
             db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[PT] Gagal commit hold_bars update: {e}", exc_info=True)
 
         return closed
 

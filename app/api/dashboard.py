@@ -31,13 +31,19 @@ def dashboard():
         .all()
     )
 
-    # 30d PnL total + Sharpe dari performance_summary
-    perf_30d = PerformanceSummary.query.filter_by(period="30d").all()
-    total_pnl_30d  = sum(p.total_pnl  or 0 for p in perf_30d)
-    avg_sharpe_30d = (
-        sum(p.sharpe_ratio or 0 for p in perf_30d) / len(perf_30d)
-        if perf_30d else 0.0
-    )
+    # 30d PnL total + Sharpe — hitung real-time dari Trade
+    from datetime import timedelta
+    import numpy as np
+    from app.extensions import utcnow
+    cutoff_30d   = utcnow() - timedelta(days=30)
+    trades_30d   = Trade.query.filter_by(status="closed").filter(Trade.closed_at >= cutoff_30d).all()
+    total_pnl_30d = sum(t.pnl_net or 0 for t in trades_30d)
+    pnl_list_30d  = [t.pnl_net or 0 for t in trades_30d]
+    if len(pnl_list_30d) > 1:
+        std_30d        = float(np.std(pnl_list_30d))
+        avg_sharpe_30d = float(np.mean(pnl_list_30d)) / std_30d if std_30d > 0 else 0.0
+    else:
+        avg_sharpe_30d = 0.0
 
     # Model performance per koin — sumber dari PerformanceSummary (paper trading)
     from sqlalchemy import and_
