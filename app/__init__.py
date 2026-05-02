@@ -194,7 +194,7 @@ def _update_model_meta(app: Flask) -> None:
         if per_coin:
             meta.win_rate = per_coin.get("winrate", meta.win_rate)
             meta.total_trades = per_coin.get("total_trades", meta.total_trades)
-            meta.max_drawdown = per_coin.get("dd_lev3x", meta.max_drawdown)
+            meta.max_drawdown = per_coin.get("dd_lev5x", per_coin.get("dd_lev3x", meta.max_drawdown))
             updated = True
             
     if updated:
@@ -259,7 +259,7 @@ def _ensure_model_variants(app: Flask) -> None:
                 model_type            = vtype,
                 win_rate              = per_coin.get("winrate",   bs.get("mean_winrate")),
                 total_trades          = per_coin.get("total_trades"),
-                max_drawdown          = per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
+                max_drawdown          = per_coin.get("dd_lev5x", per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev5x", bs.get("mean_drawdown_lev3x")))),
                 n_features            = v.get("n_features", 85),
                 model_path            = p.get("lstm") or p.get("lgbm"),
                 scaler_path           = p.get("scaler"),
@@ -346,7 +346,7 @@ def _auto_seed(app: Flask) -> None:
             model_type            = vtype,
             win_rate              = per_coin.get("winrate",     bs.get("mean_winrate")),
             total_trades          = per_coin.get("total_trades"),
-            max_drawdown          = per_coin.get("dd_lev3x",   bs.get("mean_drawdown_lev3x")),
+            max_drawdown          = per_coin.get("dd_lev5x",   per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev5x", bs.get("mean_drawdown_lev3x")))),
             n_features            = v.get("n_features", 85),
             model_path            = p.get("lstm") or p.get("lgbm"),
             scaler_path           = p.get("scaler"),

@@ -156,7 +156,7 @@ def _scan_new_models() -> None:
             if meta:
                 meta.n_features            = N_FEATURES
                 meta.win_rate              = bs.get("mean_winrate", meta.win_rate)
-                meta.max_drawdown          = bs.get("mean_drawdown_lev3x", meta.max_drawdown)
+                meta.max_drawdown          = bs.get("mean_drawdown_lev5x", bs.get("mean_drawdown_lev3x", meta.max_drawdown))
                 meta.model_path            = paths.get("lstm") or paths.get("lgbm")
                 meta.scaler_path           = paths.get("scaler")
                 meta.meta_learner_path     = paths.get("meta")
@@ -171,7 +171,7 @@ def _scan_new_models() -> None:
                     model_type            = model_type,
                     n_features            = N_FEATURES,
                     win_rate              = bs.get("mean_winrate"),
-                    max_drawdown          = bs.get("mean_drawdown_lev3x"),
+                    max_drawdown          = bs.get("mean_drawdown_lev5x", bs.get("mean_drawdown_lev3x")),
                     model_path            = paths.get("lstm") or paths.get("lgbm"),
                     scaler_path           = paths.get("scaler"),
                     meta_learner_path     = paths.get("meta"),

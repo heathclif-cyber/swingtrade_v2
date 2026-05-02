@@ -21,12 +21,12 @@ def models():
     if bpc:
         vals = list(bpc.values())
         mean_wr = sum(v["winrate"] for v in vals) / len(vals)
-        mean_dd = sum(v["dd_lev3x"] for v in vals) / len(vals)
+        mean_dd = sum(v.get("dd_lev5x", v.get("dd_lev3x", 0.0)) for v in vals) / len(vals)
         for v in registry_versions:
             if not v.get("backtest_summary"):
                 v["backtest_summary"] = {
                     "mean_winrate":        round(mean_wr, 4),
-                    "mean_drawdown_lev3x": round(mean_dd, 4),
+                    "mean_drawdown_lev5x": round(mean_dd, 4),
                     "is_avg_fallback":     True,
                 }
 

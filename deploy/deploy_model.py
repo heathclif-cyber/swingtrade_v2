@@ -101,6 +101,22 @@ def patch_inference_config(config: dict) -> dict:
         patched["coins_validated"] = cv
         print(f"  [patch] coins_validated.recommended ditambah ({len(high + med)} koin)")
 
+    # Normalisasi field drawdown: rename lev3x → lev5x jika pipeline menggunakan format lama
+    bpc = patched.get("backtest_per_coin", {})
+    changed_bpc = False
+    for data in bpc.values():
+        if "dd_lev3x" in data and "dd_lev5x" not in data:
+            data["dd_lev5x"] = data.pop("dd_lev3x")
+            changed_bpc = True
+    if changed_bpc:
+        print("  [patch] backtest_per_coin: 'dd_lev3x' -> 'dd_lev5x'")
+
+    bs = patched.get("backtest_summary", {})
+    if "mean_drawdown_lev3x" in bs and "mean_drawdown_lev5x" not in bs:
+        bs["mean_drawdown_lev5x"] = bs.pop("mean_drawdown_lev3x")
+        patched["backtest_summary"] = bs
+        print("  [patch] backtest_summary: 'mean_drawdown_lev3x' -> 'mean_drawdown_lev5x'")
+
     return patched
 
 

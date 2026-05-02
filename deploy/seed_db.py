@@ -97,7 +97,7 @@ def seed(dry_run: bool) -> None:
                     model_type=model_type_val,
                     win_rate=per_coin.get("winrate", bs.get("mean_winrate")),
                     total_trades=per_coin.get("total_trades"),
-                    max_drawdown=per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev3x")),
+                    max_drawdown=per_coin.get("dd_lev5x", per_coin.get("dd_lev3x", bs.get("mean_drawdown_lev5x", bs.get("mean_drawdown_lev3x")))),
                     n_features=version.get("n_features", 85),
                     model_path=paths.get("lstm"),
                     scaler_path=paths.get("scaler"),
