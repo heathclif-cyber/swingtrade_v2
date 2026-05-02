@@ -51,6 +51,7 @@ def run(app: Flask) -> None:
             logger.warning("[generate_signals] Tidak ada koin aktif di database")
             return
 
+        logger.info(f"[generate_signals] {len(coins)} koin aktif akan diproses")
         data_svc = InferenceDataService()
         engine   = PaperTradingEngine()
         ok = skip = fail = 0

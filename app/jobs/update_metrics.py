@@ -26,6 +26,9 @@ def run(app: Flask) -> None:
         _refresh_performance_summary()
         _scan_new_models()
         _rotate_old_signals()
+        from app.services.inference import InferenceService
+        InferenceService.clear_cache()
+        logger.info("[update_metrics] Model cache di-invalidate setelah scan")
 
 
 def _refresh_performance_summary() -> None:

@@ -25,15 +25,22 @@ def health():
         .all()
     )
 
+    signal_by_direction = dict(
+        db.session.query(Signal.direction, func.count(Signal.id))
+        .group_by(Signal.direction)
+        .all()
+    )
+
     return jsonify({
-        "status":            "ok",
-        "scheduler_running": sched is not None and sched.running,
-        "jobs":              [j.id for j in sched.get_jobs()] if sched else [],
-        "models_loaded":     list(model_cache._store.keys()),
-        "active_trades":     open_tr,
-        "total_signals":     signals,
-        "memory_mb":         mem["rss_mb"],
-        "memory_pct":        mem["pct"],
-        "memory_limit_mb":   mem["limit_mb"],
-        "meta_counts":       meta_counts,
+        "status":               "ok",
+        "scheduler_running":    sched is not None and sched.running,
+        "jobs":                 [j.id for j in sched.get_jobs()] if sched else [],
+        "models_loaded":        list(model_cache._store.keys()),
+        "active_trades":        open_tr,
+        "total_signals":        signals,
+        "signals_by_direction": signal_by_direction,
+        "memory_mb":            mem["rss_mb"],
+        "memory_pct":           mem["pct"],
+        "memory_limit_mb":      mem["limit_mb"],
+        "meta_counts":          meta_counts,
     })
