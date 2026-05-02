@@ -19,7 +19,8 @@
       </tr>
     </thead>
     <tbody>
-      {% for coin, meta, sel, perf in rows %}
+      {% for coin, meta, sel in rows %}
+      {% set perf = perf_map.get(coin.id) %}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-3">
           <a href="/coins/{{ coin.symbol }}" class="text-blue-400 hover:underline font-mono font-medium">
