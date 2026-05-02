@@ -2,19 +2,14 @@
 deploy/deploy_model.py — Deployment Bridge Script
 
 Jembatan antara training pipeline output dan web app.
-Membaca model_registry.json format BARU (dari training pipeline) dan menulis:
-  - Model files ke root models/
-  - model_registry.json dengan format LAMA (yang web app mengerti)
+Membaca model_registry.json dari folder source, menyalin 7 file model ke
+root models/, dan menulis model_registry.json dengan format yang web app mengerti.
 
-Mode:
-  default  : copy file + buat backup di models/v{timestamp}/ (safe)
-  --direct : copy langsung ke models/, tanpa backup folder (seamless)
+Tidak ada folder backup — semua file langsung di models/ (seamless).
 
 Usage:
-    python deploy/deploy_model.py                                    # deploy + backup
-    python deploy/deploy_model.py --direct                           # deploy langsung, tanpa backup
-    python deploy/deploy_model.py --source D:/Download/workspace     # dari folder kustom
-    python deploy/deploy_model.py --source D:/Download/workspace --direct
+    python deploy/deploy_model.py                                    # deploy dari folder kustom
+    python deploy/deploy_model.py --source D:/Download/workspace/models
     python deploy/deploy_model.py --dry-run                          # preview
 """
 
@@ -109,31 +104,23 @@ def patch_inference_config(config: dict) -> dict:
     return patched
 
 
-def write_registry_old_format(active_info: dict, dest_dir: Path, version_str: str, direct: bool = False):
-    """Tulis model_registry.json dengan format lama (versions).
+def write_registry(active_info: dict, dest_dir: Path, version_str: str):
+    """Tulis model_registry.json dengan format versions.
+
+    Semua path menunjuk langsung ke root models/ (tanpa subfolder versi).
 
     Args:
         active_info: Informasi model aktif dari registry.
-        dest_dir: Direktori tujuan (biasanya models/).
+        dest_dir: Direktori tujuan (models/).
         version_str: Timestamp string untuk run_id.
-        direct: Jika True, path menunjuk langsung ke root models/ (tanpa subfolder versi).
     """
-    if direct:
-        paths = {
-            "lstm":             "models/lstm_best.pt",
-            "scaler":           "models/lstm_scaler.pkl",
-            "meta":             "models/ensemble_meta.pkl",
-            "calibrator":       "models/calibrator.pkl",
-            "inference_config": "models/inference_config.json",
-        }
-    else:
-        paths = {
-            "lstm":             f"models/v{version_str}/lstm_best.pt",
-            "scaler":           f"models/v{version_str}/lstm_scaler.pkl",
-            "meta":             f"models/v{version_str}/ensemble_meta.pkl",
-            "calibrator":       f"models/v{version_str}/calibrator.pkl",
-            "inference_config": f"models/v{version_str}/inference_config.json",
-        }
+    paths = {
+        "lstm":             "models/lstm_best.pt",
+        "scaler":           "models/lstm_scaler.pkl",
+        "meta":             "models/ensemble_meta.pkl",
+        "calibrator":       "models/calibrator.pkl",
+        "inference_config": "models/inference_config.json",
+    }
 
     registry = {
         "versions": [
@@ -153,35 +140,29 @@ def write_registry_old_format(active_info: dict, dest_dir: Path, version_str: st
     with open(dest_path, "w") as f:
         json.dump(registry, f, indent=2)
     print(f"  [write] {dest_path}")
-    if direct:
-        print(f"  [mode] DIRECT — path menunjuk ke root models/")
-    else:
-        print(f"  [mode] VERSIONED — path menunjuk ke models/v{version_str}/")
     return registry
 
 
-def deploy(source_dir: Path, dry_run: bool, direct: bool = False) -> Path:
-    """Deploy model dari source_dir ke struktur yang web app butuhkan.
+def deploy(source_dir: Path, dry_run: bool) -> Path:
+    """Deploy model dari source_dir ke models/ root.
+
+    Semua file langsung ditimpa di models/, tanpa folder backup.
+    model_registry.json ditulis dengan path langsung ke root models/.
 
     Args:
         source_dir: Direktori sumber file model.
         dry_run: Jika True, hanya preview.
-        direct: Jika True, copy langsung ke models/ tanpa backup folder.
 
     Returns:
-        Path ke direktori backup (jika direct=True, return MODELS_DIR).
+        MODELS_DIR.
     """
     source_dir = source_dir.resolve()
     timestamp  = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    versioned  = MODELS_DIR / f"v{timestamp}"
 
-    mode_label = "DIRECT (tanpa backup)" if direct else "VERSIONED (dengan backup)"
     print(f"\n{'='*60}")
-    print(f"  DEPLOY MODEL — Mode: {mode_label}")
+    print(f"  DEPLOY MODEL — Seamless (tanpa backup)")
     print(f"{'='*60}")
     print(f"  Source  : {source_dir}")
-    if not direct:
-        print(f"  Backup  : {versioned}")
     print(f"  Dry run : {'YES' if dry_run else 'NO'}")
     print(f"{'='*60}\n")
 
@@ -216,72 +197,47 @@ def deploy(source_dir: Path, dry_run: bool, direct: bool = False) -> Path:
     if dry_run:
         print(f"\n  [dry-run] Akan menulis:")
         print(f"    - {MODELS_DIR / 'model_registry.json'} (format versions)")
-        if not direct:
-            print(f"    - {versioned}/ (backup terstruktur)")
-        print(f"    - File di root models/ akan {'ditimpa' if direct else 'diupdate'}")
-        return versioned
+        print(f"    - 7 file model akan ditimpa di {MODELS_DIR}/")
+        return MODELS_DIR
 
     # ── 3. Patch inference_config ────────────────────────────────────────────
     with open(source_dir / "inference_config.json") as f:
         config = json.load(f)
     patched = patch_inference_config(config)
 
-    # ── 4. Copy file ─────────────────────────────────────────────────────────
-    if direct:
-        # Mode DIRECT: copy langsung ke models/, timpa file lama
-        print(f"\n  [direct] Menyalin file ke {MODELS_DIR} ...")
-        for fname in REQUIRED_FILES:
-            src = source_dir / fname
-            dst = MODELS_DIR / fname
-            if fname == "inference_config.json":
-                continue  # handle terpisah
-            shutil.copy2(src, dst)
-            print(f"    [copy] {fname}")
-    else:
-        # Mode VERSIONED: buat folder backup dulu
-        versioned.mkdir(parents=True, exist_ok=True)
-        print(f"\n  [backup] Membuat {versioned}")
-        for fname in REQUIRED_FILES:
-            src = source_dir / fname
-            dst = versioned / fname
-            if fname == "inference_config.json":
-                continue  # handle terpisah
-            shutil.copy2(src, dst)
-            print(f"    [copy] {fname} -> {dst.name}")
+    # ── 4. Copy semua file kecuali inference_config ──────────────────────────
+    print(f"\n  Menyalin file ke {MODELS_DIR} ...")
+    for fname in REQUIRED_FILES:
+        src = source_dir / fname
+        dst = MODELS_DIR / fname
+        if fname == "inference_config.json":
+            continue  # handle terpisah dengan patch
+        shutil.copy2(src, dst)
+        print(f"    [copy] {fname}")
 
     # ── 5. Simpan inference_config.json yang sudah di-patch ──────────────────
     with open(MODELS_DIR / "inference_config.json", "w") as f:
         json.dump(patched, f, indent=2)
     print(f"    [save] models/inference_config.json (patched)")
 
-    if not direct:
-        # Juga simpan di folder backup
-        dst_config = versioned / "inference_config.json"
-        with open(dst_config, "w") as f:
-            json.dump(patched, f, indent=2)
-        print(f"    [save] {dst_config} (patched)")
-
-    # ── 6. Tulis model_registry.json format lama ─────────────────────────────
-    registry = write_registry_old_format(active_info, MODELS_DIR, timestamp, direct=direct)
+    # ── 6. Tulis model_registry.json ─────────────────────────────────────────
+    registry = write_registry(active_info, MODELS_DIR, timestamp)
 
     print(f"\n{'='*60}")
-    print(f"  DEPLOY BERHASIL — Mode: {mode_label}")
+    print(f"  DEPLOY BERHASIL")
     print(f"{'='*60}")
     print(f"  Registry  : {MODELS_DIR / 'model_registry.json'}")
-    if direct:
-        print(f"  Model files: {MODELS_DIR}/ (langsung)")
-    else:
-        print(f"  Backup     : {versioned}")
+    print(f"  Model     : {MODELS_DIR}/ (langsung, tanpa backup)")
     print(f"\n  Jalankan deploy/seed_db.py untuk update database:")
     print(f"    python deploy/seed_db.py")
     print(f"{'='*60}")
 
-    return versioned if not direct else MODELS_DIR
+    return MODELS_DIR
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Deploy model training output ke struktur yang web app butuhkan"
+        description="Deploy model training output — seamless, tanpa backup"
     )
     parser.add_argument(
         "--source", "-s",
@@ -292,11 +248,6 @@ def main():
         "--dry-run", "-n",
         action="store_true",
         help="Preview tanpa menulis file",
-    )
-    parser.add_argument(
-        "--direct", "-d",
-        action="store_true",
-        help="Direct mode: copy langsung ke models/, tanpa backup folder versi",
     )
     args = parser.parse_args()
 
@@ -310,7 +261,7 @@ def main():
         print(f"[error] Source directory tidak ditemukan: {source_dir}")
         sys.exit(1)
 
-    deploy(source_dir, dry_run=args.dry_run, direct=args.direct)
+    deploy(source_dir, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
