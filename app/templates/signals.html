@@ -6,7 +6,7 @@
   <h1 class="text-xl font-bold">Signals</h1>
   <div class="flex items-center gap-2">
     <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
-    <button onclick="copyCSV(event, '/paper/signals/export.csv?symbol={{ symbol }}&direction={{ direction }}')"
+    <button onclick="copyCSV(this, '/paper/signals/export.csv?symbol={{ symbol }}&direction={{ direction }}')"
        class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
       📋 Copy CSV
     </button>
@@ -114,12 +114,11 @@
 {% endif %}
 
 <script>
-async function copyCSV(event, url) {
+async function copyCSV(btn, url) {
   try {
     const resp = await fetch(url);
     const text = await resp.text();
     await navigator.clipboard.writeText(text);
-    const btn = event.currentTarget;
     const orig = btn.textContent;
     btn.textContent = '✅ Copied!';
     setTimeout(() => btn.textContent = orig, 2000);
