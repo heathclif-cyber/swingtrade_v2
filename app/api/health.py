@@ -10,34 +10,30 @@ def health():
     from app.services.cache import model_cache
     from app.models.trade import Trade
     from app.models.signal import Signal
+    from app.models.model_meta import ModelMeta
+    from app.extensions import db
+    from sqlalchemy import func
 
     sched   = get_scheduler()
     mem     = get_memory_status()
     open_tr = Trade.query.filter_by(status="open").count()
     signals = Signal.query.count()
 
+    meta_counts = dict(
+        db.session.query(ModelMeta.model_type, func.count(ModelMeta.id))
+        .group_by(ModelMeta.model_type)
+        .all()
+    )
+
     return jsonify({
-        "status":           "ok",
+        "status":            "ok",
         "scheduler_running": sched is not None and sched.running,
-        "jobs":             [j.id for j in sched.get_jobs()] if sched else [],
-        "models_loaded":    list(model_cache._store.keys()),
-        "active_trades":    open_tr,
-        "total_signals":    signals,
-        "memory_mb":        mem["rss_mb"],
-        "memory_pct":       mem["pct"],
-        "memory_limit_mb":  mem["limit_mb"],
-    })
-
-
-@bp.get("/api/stats")
-def stats():
-    from app.models.trade import Trade
-    from app.models.signal import Signal
-    from app.models.coin import Coin
-
-    return jsonify({
-        "active_coins":  Coin.query.filter_by(status="active").count(),
-        "open_trades":   Trade.query.filter_by(status="open").count(),
-        "closed_trades": Trade.query.filter_by(status="closed").count(),
-        "total_signals": Signal.query.count(),
+        "jobs":              [j.id for j in sched.get_jobs()] if sched else [],
+        "models_loaded":     list(model_cache._store.keys()),
+        "active_trades":     open_tr,
+        "total_signals":     signals,
+        "memory_mb":         mem["rss_mb"],
+        "memory_pct":        mem["pct"],
+        "memory_limit_mb":   mem["limit_mb"],
+        "meta_counts":       meta_counts,
     })
