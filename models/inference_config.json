@@ -1,16 +1,16 @@
 {
   "model_version": "ensemble_v2",
-  "created_at": "2026-04-25T17:02:50.876718+00:00",
+  "created_at": "2026-05-02T06:11:58.833454+00:00",
   "training_period": {
-    "start": "2022-01-01",
-    "end": "2025-04-01"
+    "start": "2020-01-01",
+    "end": "2026-04-01"
   },
   "inference": {
-    "confidence_threshold_entry": 0.50,
+    "confidence_threshold_entry": 0.5,
     "confidence_full_size": 0.75,
-    "confidence_half_size": 0.60,
+    "confidence_half_size": 0.6,
     "min_hold_bars": 2,
-    "max_hold_bars": 48,
+    "max_hold_bars": 24,
     "timeframe": "1h",
     "seq_len": 32,
     "label_map": {
@@ -24,218 +24,313 @@
       "2": "LONG"
     }
   },
+  "feature_engineering": {
+    "vp_window": 24,
+    "vp_bins": 50,
+    "fvg_min_gap_atr": 0.5,
+    "swing_lookback": 5
+  },
+  "signal_stability": {
+    "flip_conf_min": 0.7,
+    "flip_confirm_bars": 2,
+    "flip_cooldown_secs": 1800,
+    "same_dir_cooldown_hours": 2.5
+  },
+  "volatility_circuit_breaker": {
+    "enabled": true,
+    "atr_multiplier": 3.0,
+    "lookback_bars": 24
+  },
+  "monitor": {
+    "pairs": [
+      "SOLUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "XRPUSDT",
+      "DOGEUSDT",
+      "TONUSDT",
+      "ADAUSDT",
+      "TRXUSDT",
+      "1000SHIBUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "DOTUSDT",
+      "SUIUSDT",
+      "POLUSDT",
+      "NEARUSDT",
+      "1000PEPEUSDT",
+      "TAOUSDT",
+      "ARBUSDT"
+    ],
+    "poll_interval_secs": 300
+  },
   "labeling": {
     "tp_atr_mult": 2.0,
     "sl_atr_mult": 1.0,
-    "max_holding_bars": 48
+    "max_holding_bars": 24
   },
   "fallback_tp_sl": {
     "tp_atr_mult": 2.0,
-    "sl_atr_mult": 1.0,
-    "max_holding_bars": 48
-  },
-  "same_dir_cooldown_hours": 4,
-  "vcb": {
-    "enabled": true,
-    "lookback_bars": 24,
-    "atr_multiplier": 2.5
+    "sl_atr_mult": 1.0
   },
   "risk": {
     "modal_per_trade": 100.0,
     "leverage_recommended": 5.0,
-    "leverage_max": 5.0,
     "fee_per_side": 0.0004
   },
   "coins_validated": {
     "recommended": [
-      "ETHUSDT",
-      "TONUSDT",
-      "ADAUSDT",
-      "SUIUSDT",
-      "POLUSDT"
+      "ETHUSDT"
     ],
     "acceptable": [
-      "BNBUSDT",
-      "XRPUSDT",
-      "LINKUSDT",
-      "DOTUSDT",
-      "NEARUSDT"
+      "TONUSDT",
+      "1000SHIBUSDT"
     ],
     "caution": [
       "SOLUSDT",
+      "BNBUSDT",
+      "XRPUSDT",
       "DOGEUSDT",
+      "ADAUSDT",
       "TRXUSDT",
-      "1000SHIBUSDT",
       "AVAXUSDT",
-      "1000PEPEUSDT"
+      "LINKUSDT",
+      "DOTUSDT",
+      "SUIUSDT",
+      "POLUSDT",
+      "NEARUSDT",
+      "1000PEPEUSDT",
+      "TAOUSDT",
+      "ARBUSDT"
     ]
   },
   "backtest_summary": {
-    "mean_winrate": 0.773,
-    "mean_trade_per_month": 39.46,
-    "mean_drawdown_lev3x": 0.2902,
-    "max_consecutive_loss": 10
+    "mean_winrate": 0.7362,
+    "mean_trade_per_month": 42.31,
+    "mean_drawdown_lev5x": 0.4854,
+    "mean_pnl_lev5x": 21782.81,
+    "max_consecutive_loss": 13,
+    "mean_sharpe": 17.0097,
+    "mean_sortino": 71.1442,
+    "mean_calmar": 109.8294,
+    "mean_profit_factor": 10.3439
   },
   "backtest_per_coin": {
     "SOLUSDT": {
-      "winrate": 0.7941,
-      "trade_per_month": 40.15,
-      "dd_lev3x": 0.3354,
-      "dd_lev5x": 0.5591,
-      "pnl_lev3x": 113563.2552,
-      "pnl_lev5x": 189272.092,
-      "max_consec_loss": 10,
-      "total_trades": 1389
+      "winrate": 0.7486,
+      "trade_per_month": 47.05,
+      "dd_lev5x": 0.414,
+      "pnl_lev5x": 32435.8543,
+      "max_consec_loss": 8,
+      "total_trades": 2844,
+      "sharpe_ratio": 19.9889,
+      "sortino_ratio": 80.7834,
+      "calmar_ratio": 155.524,
+      "profit_factor": 10.6187
     },
     "ETHUSDT": {
-      "winrate": 0.825,
-      "trade_per_month": 32.55,
-      "dd_lev3x": 0.1323,
-      "dd_lev5x": 0.2205,
-      "pnl_lev3x": 64104.9332,
-      "pnl_lev5x": 106841.5534,
-      "max_consec_loss": 5,
-      "total_trades": 1126
+      "winrate": 0.8007,
+      "trade_per_month": 20.65,
+      "dd_lev5x": 0.193,
+      "pnl_lev5x": 10489.01,
+      "max_consec_loss": 6,
+      "total_trades": 1375,
+      "sharpe_ratio": 14.2861,
+      "sortino_ratio": 65.1562,
+      "calmar_ratio": 97.9295,
+      "profit_factor": 14.2044
     },
     "BNBUSDT": {
-      "winrate": 0.7619,
-      "trade_per_month": 48.68,
-      "dd_lev3x": 0.2544,
-      "dd_lev5x": 0.4241,
-      "pnl_lev3x": 73161.6967,
-      "pnl_lev5x": 121936.1598,
-      "max_consec_loss": 5,
-      "total_trades": 1684
+      "winrate": 0.7353,
+      "trade_per_month": 51.12,
+      "dd_lev5x": 0.3893,
+      "pnl_lev5x": 23751.3842,
+      "max_consec_loss": 13,
+      "total_trades": 3404,
+      "sharpe_ratio": 18.5269,
+      "sortino_ratio": 79.2428,
+      "calmar_ratio": 109.9363,
+      "profit_factor": 10.5672
     },
     "XRPUSDT": {
-      "winrate": 0.7771,
-      "trade_per_month": 40.59,
-      "dd_lev3x": 0.2338,
-      "dd_lev5x": 0.3897,
-      "pnl_lev3x": 88469.1989,
-      "pnl_lev5x": 147448.6622,
-      "max_consec_loss": 6,
-      "total_trades": 1404
+      "winrate": 0.7543,
+      "trade_per_month": 49.08,
+      "dd_lev5x": 0.5814,
+      "pnl_lev5x": 33765.6113,
+      "max_consec_loss": 8,
+      "total_trades": 3268,
+      "sharpe_ratio": 17.8776,
+      "sortino_ratio": 79.6607,
+      "calmar_ratio": 104.6492,
+      "profit_factor": 12.3608
     },
     "DOGEUSDT": {
-      "winrate": 0.7763,
-      "trade_per_month": 43.16,
-      "dd_lev3x": 0.3387,
-      "dd_lev5x": 0.5646,
-      "pnl_lev3x": 113781.8267,
-      "pnl_lev5x": 189636.3788,
-      "max_consec_loss": 4,
-      "total_trades": 1493
+      "winrate": 0.7833,
+      "trade_per_month": 46.72,
+      "dd_lev5x": 0.6431,
+      "pnl_lev5x": 41113.5863,
+      "max_consec_loss": 7,
+      "total_trades": 3111,
+      "sharpe_ratio": 12.6179,
+      "sortino_ratio": 84.1853,
+      "calmar_ratio": 115.1976,
+      "profit_factor": 13.5113
     },
     "TONUSDT": {
-      "winrate": 0.7495,
-      "trade_per_month": 40.96,
-      "dd_lev3x": 0.1954,
-      "dd_lev5x": 0.3257,
-      "pnl_lev3x": 27953.5154,
-      "pnl_lev5x": 46589.1918,
+      "winrate": 0.6911,
+      "trade_per_month": 43.49,
+      "dd_lev5x": 0.2107,
+      "pnl_lev5x": 5159.7824,
       "max_consec_loss": 6,
-      "total_trades": 471
+      "total_trades": 790,
+      "sharpe_ratio": 16.6499,
+      "sortino_ratio": 76.9342,
+      "calmar_ratio": 161.7454,
+      "profit_factor": 7.9719
     },
     "ADAUSDT": {
-      "winrate": 0.7784,
-      "trade_per_month": 37.44,
-      "dd_lev3x": 0.1658,
-      "dd_lev5x": 0.2764,
-      "pnl_lev3x": 90721.8914,
-      "pnl_lev5x": 151203.1529,
-      "max_consec_loss": 4,
-      "total_trades": 1295
+      "winrate": 0.7523,
+      "trade_per_month": 51.16,
+      "dd_lev5x": 0.7398,
+      "pnl_lev5x": 34742.4072,
+      "max_consec_loss": 7,
+      "total_trades": 3407,
+      "sharpe_ratio": 19.0091,
+      "sortino_ratio": 75.6008,
+      "calmar_ratio": 84.6218,
+      "profit_factor": 10.8923
     },
     "TRXUSDT": {
-      "winrate": 0.7458,
-      "trade_per_month": 43.1,
-      "dd_lev3x": 0.5133,
-      "dd_lev5x": 0.8555,
-      "pnl_lev3x": 52757.1916,
-      "pnl_lev5x": 87928.6532,
-      "max_consec_loss": 7,
-      "total_trades": 1491
+      "winrate": 0.767,
+      "trade_per_month": 43.57,
+      "dd_lev5x": 0.462,
+      "pnl_lev5x": 20216.5203,
+      "max_consec_loss": 8,
+      "total_trades": 2901,
+      "sharpe_ratio": 16.2515,
+      "sortino_ratio": 74.2392,
+      "calmar_ratio": 78.8499,
+      "profit_factor": 14.1704
     },
     "1000SHIBUSDT": {
-      "winrate": 0.7891,
-      "trade_per_month": 32.75,
-      "dd_lev3x": 0.6506,
-      "dd_lev5x": 1.0843,
-      "pnl_lev3x": 95511.4379,
-      "pnl_lev5x": 159185.7301,
+      "winrate": 0.7638,
+      "trade_per_month": 20.77,
+      "dd_lev5x": 0.2425,
+      "pnl_lev5x": 12799.2564,
       "max_consec_loss": 5,
-      "total_trades": 1133
+      "total_trades": 1084,
+      "sharpe_ratio": 12.2772,
+      "sortino_ratio": 54.6136,
+      "calmar_ratio": 121.3219,
+      "profit_factor": 13.1875
     },
     "AVAXUSDT": {
-      "winrate": 0.7354,
-      "trade_per_month": 45.99,
-      "dd_lev3x": 0.4631,
-      "dd_lev5x": 0.7718,
-      "pnl_lev3x": 110209.6146,
-      "pnl_lev5x": 183682.6916,
-      "max_consec_loss": 6,
-      "total_trades": 1591
+      "winrate": 0.7271,
+      "trade_per_month": 46.54,
+      "dd_lev5x": 0.5327,
+      "pnl_lev5x": 31130.3919,
+      "max_consec_loss": 9,
+      "total_trades": 2778,
+      "sharpe_ratio": 18.3028,
+      "sortino_ratio": 75.0925,
+      "calmar_ratio": 117.4728,
+      "profit_factor": 9.8681
     },
     "LINKUSDT": {
-      "winrate": 0.754,
-      "trade_per_month": 45.01,
-      "dd_lev3x": 0.2704,
-      "dd_lev5x": 0.4506,
-      "pnl_lev3x": 105783.8668,
-      "pnl_lev5x": 176306.4463,
-      "max_consec_loss": 7,
-      "total_trades": 1557
+      "winrate": 0.7444,
+      "trade_per_month": 50.88,
+      "dd_lev5x": 0.5723,
+      "pnl_lev5x": 35256.6877,
+      "max_consec_loss": 11,
+      "total_trades": 3388,
+      "sharpe_ratio": 20.5715,
+      "sortino_ratio": 79.8479,
+      "calmar_ratio": 111.008,
+      "profit_factor": 10.335
     },
     "DOTUSDT": {
-      "winrate": 0.7725,
-      "trade_per_month": 41.16,
-      "dd_lev3x": 0.247,
-      "dd_lev5x": 0.4116,
-      "pnl_lev3x": 92356.3466,
-      "pnl_lev5x": 153927.2483,
-      "max_consec_loss": 5,
-      "total_trades": 1424
+      "winrate": 0.7229,
+      "trade_per_month": 46.8,
+      "dd_lev5x": 0.7108,
+      "pnl_lev5x": 27022.0884,
+      "max_consec_loss": 8,
+      "total_trades": 2818,
+      "sharpe_ratio": 17.9759,
+      "sortino_ratio": 67.2724,
+      "calmar_ratio": 75.7529,
+      "profit_factor": 9.3842
     },
     "SUIUSDT": {
-      "winrate": 0.7614,
-      "trade_per_month": 40.95,
-      "dd_lev3x": 0.1903,
-      "dd_lev5x": 0.3171,
-      "pnl_lev3x": 75509.9491,
-      "pnl_lev5x": 125849.9115,
-      "max_consec_loss": 5,
-      "total_trades": 834
+      "winrate": 0.6928,
+      "trade_per_month": 46.45,
+      "dd_lev5x": 0.5884,
+      "pnl_lev5x": 14049.0093,
+      "max_consec_loss": 7,
+      "total_trades": 1465,
+      "sharpe_ratio": 17.3203,
+      "sortino_ratio": 59.865,
+      "calmar_ratio": 90.8431,
+      "profit_factor": 6.9031
     },
     "POLUSDT": {
-      "winrate": 0.7571,
-      "trade_per_month": 36.32,
-      "dd_lev3x": 0.1143,
-      "dd_lev5x": 0.1905,
-      "pnl_lev3x": 14364.4651,
-      "pnl_lev5x": 23940.7738,
-      "max_consec_loss": 4,
-      "total_trades": 210
+      "winrate": 0.6849,
+      "trade_per_month": 47.1,
+      "dd_lev5x": 0.3065,
+      "pnl_lev5x": 6046.6344,
+      "max_consec_loss": 9,
+      "total_trades": 803,
+      "sharpe_ratio": 17.8807,
+      "sortino_ratio": 67.3965,
+      "calmar_ratio": 138.8373,
+      "profit_factor": 7.1862
     },
     "NEARUSDT": {
-      "winrate": 0.7593,
-      "trade_per_month": 39.03,
-      "dd_lev3x": 0.2242,
-      "dd_lev5x": 0.3736,
-      "pnl_lev3x": 108132.3534,
-      "pnl_lev5x": 180220.5911,
-      "max_consec_loss": 6,
-      "total_trades": 1350
+      "winrate": 0.7151,
+      "trade_per_month": 48.47,
+      "dd_lev5x": 0.4859,
+      "pnl_lev5x": 33077.1683,
+      "max_consec_loss": 7,
+      "total_trades": 2836,
+      "sharpe_ratio": 19.3804,
+      "sortino_ratio": 77.567,
+      "calmar_ratio": 139.6072,
+      "profit_factor": 9.1729
     },
     "1000PEPEUSDT": {
-      "winrate": 0.8309,
-      "trade_per_month": 23.59,
-      "dd_lev3x": 0.3138,
-      "dd_lev5x": 0.523,
-      "pnl_lev3x": 63061.8528,
-      "pnl_lev5x": 105103.087,
-      "max_consec_loss": 4,
-      "total_trades": 479
+      "winrate": 0.75,
+      "trade_per_month": 17.41,
+      "dd_lev5x": 0.8169,
+      "pnl_lev5x": 9066.988,
+      "max_consec_loss": 6,
+      "total_trades": 548,
+      "sharpe_ratio": 10.4772,
+      "sortino_ratio": 39.6238,
+      "calmar_ratio": 42.3174,
+      "profit_factor": 10.195
+    },
+    "TAOUSDT": {
+      "winrate": 0.7205,
+      "trade_per_month": 36.93,
+      "dd_lev5x": 0.4088,
+      "pnl_lev5x": 8677.1991,
+      "max_consec_loss": 6,
+      "total_trades": 780,
+      "sharpe_ratio": 18.71,
+      "sortino_ratio": 74.1346,
+      "calmar_ratio": 120.5724,
+      "profit_factor": 8.3901
+    },
+    "ARBUSDT": {
+      "winrate": 0.6975,
+      "trade_per_month": 47.44,
+      "dd_lev5x": 0.4388,
+      "pnl_lev5x": 13290.9811,
+      "max_consec_loss": 7,
+      "total_trades": 1557,
+      "sharpe_ratio": 18.0714,
+      "sortino_ratio": 69.3792,
+      "calmar_ratio": 110.7427,
+      "profit_factor": 7.2716
     }
   },
   "model_files": {
@@ -252,15 +347,5 @@
     "lstm_layers": 2,
     "lstm_dropout": 0.3,
     "num_classes": 3
-  },
-  "feature_engineering": {
-    "synthetic_oi_cvd_window":  24,
-    "synthetic_oi_norm_window": 168
-  },
-  "symbol_map": {
-    "SOLUSDT": 0, "ETHUSDT": 1, "BNBUSDT": 2, "XRPUSDT": 3, "DOGEUSDT": 4,
-    "TONUSDT": 5, "ADAUSDT": 6, "TRXUSDT": 7, "1000SHIBUSDT": 8, "AVAXUSDT": 9,
-    "LINKUSDT": 10, "DOTUSDT": 11, "SUIUSDT": 12, "POLUSDT": 13, "NEARUSDT": 14,
-    "1000PEPEUSDT": 15, "TAOUSDT": 16, "ARBUSDT": 17
   }
 }
