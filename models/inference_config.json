@@ -7,8 +7,8 @@
   },
   "inference": {
     "confidence_threshold_entry": 0.50,
-    "confidence_full_size": 0.70,
-    "confidence_half_size": 0.55,
+    "confidence_full_size": 0.75,
+    "confidence_half_size": 0.60,
     "min_hold_bars": 2,
     "max_hold_bars": 48,
     "timeframe": "1h",
@@ -41,8 +41,8 @@
     "atr_multiplier": 2.5
   },
   "risk": {
-    "modal_per_trade": 1000.0,
-    "leverage_recommended": 3.0,
+    "modal_per_trade": 100.0,
+    "leverage_recommended": 5.0,
     "leverage_max": 5.0,
     "fee_per_side": 0.0004
   },

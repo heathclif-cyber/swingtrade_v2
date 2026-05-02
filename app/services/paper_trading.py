@@ -89,10 +89,23 @@ class PaperTradingEngine:
             logger.warning(f"[PT] Skip: TP/SL tidak valid coin_id={coin_id}")
             return None
 
-        # ── 7. Buka trade ──────────────────────────────────────────────────────
-        modal = self._modal_per_trade
+        # ── 7. Tiered position sizing by confidence ────────────────────────────
+        confidence = signal_row.confidence or 0.0
+        sizing_factor = 0.0  # Default: skip
+        if confidence > (self._config.get("inference", {}).get("confidence_full_size", 0.75)):
+            sizing_factor = 1.0       # Full size: 100 USD
+        elif confidence > (self._config.get("inference", {}).get("confidence_half_size", 0.60)):
+            sizing_factor = 0.5       # Half size: 50 USD
+
+        if sizing_factor == 0.0:
+            logger.info(f"[PT] Skip {direction} coin_id={coin_id} conf={confidence:.2f} < 0.60 — tier tidak terpenuhi")
+            return None
+
+        modal = round(self._modal_per_trade * sizing_factor, 2)
         lev   = self._leverage
-        fee   = 2 * self._fee_per_side * modal
+        fee   = 2 * self._fee_per_side * self._modal_per_trade  # fee tetap dari modal penuh
+
+        # ── 8. Buka trade ──────────────────────────────────────────────────────
 
         sh_val = last_row.get("h4_swing_high") if last_row is not None else None
         sl_val = last_row.get("h4_swing_low") if last_row is not None else None
@@ -119,7 +132,8 @@ class PaperTradingEngine:
         db.session.add(trade)
         db.session.commit()
         logger.info(
-            f"[PT] OPEN {direction} coin_id={coin_id} entry={entry_price:.4f} "
+            f"[PT] OPEN {direction} coin_id={coin_id} conf={confidence:.2f} "
+            f"size={sizing_factor:.0%} modal={modal:.1f} entry={entry_price:.4f} "
             f"TP={tp:.4f} SL={sl:.4f}"
         )
 
