@@ -6,9 +6,13 @@
   <h1 class="text-xl font-bold">Coins</h1>
   <div class="flex items-center gap-2">
     <span class="text-xs text-gray-500">{{ rows | length }} coins</span>
+    <button onclick="copyCSV('/coins/export.csv')"
+       class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
+      📋 Copy CSV
+    </button>
     <a href="/coins/export.csv"
        class="text-xs text-blue-400 border border-blue-800 rounded px-3 py-1 hover:bg-blue-900/30">
-      ⬇ CSV
+      ⬇ Download
     </a>
   </div>
 </div>
@@ -81,5 +85,21 @@
 <div class="mt-4 text-xs text-gray-500">
   💡 To change model assignment, go to <a href="/models" class="text-blue-400 hover:underline">Models</a> page.
 </div>
+
+<script>
+async function copyCSV(url) {
+  try {
+    const resp = await fetch(url);
+    const text = await resp.text();
+    await navigator.clipboard.writeText(text);
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  } catch (e) {
+    alert('Gagal copy CSV: ' + e.message);
+  }
+}
+</script>
 
 {% endblock %}
