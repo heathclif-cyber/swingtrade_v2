@@ -14,6 +14,32 @@
         "calibrator": "models/calibrator.pkl",
         "inference_config": "models/inference_config.json"
       }
+    },
+    {
+      "run_id": "20260502_075149",
+      "model_type": "lgbm",
+      "status": "legacy",
+      "n_features": 85,
+      "version": "v3",
+      "trained_at": "2026-05-02",
+      "paths": {
+        "lstm": "models/lstm_best.pt",
+        "scaler": "models/lstm_scaler.pkl",
+        "inference_config": "models/inference_config.json"
+      }
+    },
+    {
+      "run_id": "20260502_075149",
+      "model_type": "lstm",
+      "status": "legacy",
+      "n_features": 85,
+      "version": "v3",
+      "trained_at": "2026-05-02",
+      "paths": {
+        "lstm": "models/lstm_best.pt",
+        "scaler": "models/lstm_scaler.pkl",
+        "inference_config": "models/inference_config.json"
+      }
     }
   ]
 }
