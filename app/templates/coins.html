@@ -2,7 +2,16 @@
 {% block title %}Coins{% endblock %}
 {% block content %}
 
-<h1 class="text-xl font-bold mb-6">Coins</h1>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold">Coins</h1>
+  <div class="flex items-center gap-2">
+    <span class="text-xs text-gray-500">{{ rows | length }} coins</span>
+    <a href="/coins/export.csv"
+       class="text-xs text-blue-400 border border-blue-800 rounded px-3 py-1 hover:bg-blue-900/30">
+      ⬇ CSV
+    </a>
+  </div>
+</div>
 
 <div class="bg-gray-900 rounded-lg border border-gray-800">
   <table class="w-full">

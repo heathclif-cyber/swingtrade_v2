@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, jsonify, request, abort
+import csv, io
+from flask import Blueprint, render_template, jsonify, request, abort, Response
 
 bp = Blueprint("trades", __name__)
 
@@ -68,6 +69,55 @@ def trades():
         status     = status,
         direction  = direction,
     )
+
+
+@bp.get("/paper/trades/export.csv")
+def trades_export_csv():
+    from app.extensions import db
+    from app.models.trade import Trade
+    from app.models.coin import Coin
+
+    symbol    = request.args.get("symbol", "")
+    status    = request.args.get("status", "")
+    direction = request.args.get("direction", "")
+
+    q = Trade.query.join(Coin, Trade.coin_id == Coin.id)
+    if symbol:
+        q = q.filter(Coin.symbol == symbol)
+    if status:
+        q = q.filter(Trade.status == status)
+    if direction:
+        q = q.filter(Trade.direction == direction)
+
+    trades = q.order_by(Trade.opened_at.desc()).limit(5000).all()
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Opened", "Closed", "Coin", "Direction", "Entry", "Exit",
+                 "TP", "SL", "H4 High", "H4 Low", "Qty", "Leverage",
+                 "PnL ($)", "PnL (%)", "Exit Reason", "Hold Bars", "Status"])
+    for t in trades:
+        w.writerow([
+            t.opened_at.strftime("%Y-%m-%d %H:%M") if t.opened_at else "",
+            t.closed_at.strftime("%Y-%m-%d %H:%M") if t.closed_at else "",
+            t.coin.symbol,
+            t.direction,
+            f"{t.entry_price:.4f}",
+            f"{t.exit_price:.4f}" if t.exit_price else "",
+            f"{t.tp_price:.4f}" if t.tp_price else "",
+            f"{t.sl_price:.4f}" if t.sl_price else "",
+            f"{t.h4_swing_high:.4f}" if t.h4_swing_high else "",
+            f"{t.h4_swing_low:.4f}" if t.h4_swing_low else "",
+            f"{t.quantity:.4f}" if t.quantity else "",
+            t.leverage if t.leverage else "",
+            f"{t.pnl_net:+.2f}" if t.pnl_net is not None else "",
+            f"{t.pnl_pct:+.1f}" if t.pnl_pct is not None else "",
+            t.exit_reason or "",
+            t.hold_bars if t.hold_bars is not None else "",
+            t.status,
+        ])
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=trades.csv"})
 
 
 @bp.get("/paper/trades/<int:trade_id>")

@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, jsonify, abort, request
+import csv, io
+from flask import Blueprint, render_template, jsonify, abort, request, Response
 
 bp = Blueprint("coins", __name__)
 
@@ -47,6 +48,66 @@ def coins():
         )
 
     return render_template("coins.html", rows=rows, perf_map=perf_map)
+
+
+@bp.get("/coins/export.csv")
+def coins_export_csv():
+    from app.extensions import db
+    from app.models.coin import Coin
+    from app.models.model_meta import ModelMeta
+    from app.models.model_selection import ModelSelection
+    from app.models.trade import Trade
+    from collections import defaultdict
+    from types import SimpleNamespace
+    import numpy as np
+
+    rows = (
+        db.session.query(Coin, ModelMeta, ModelSelection)
+        .join(ModelSelection, ModelSelection.coin_id == Coin.id, isouter=True)
+        .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id, isouter=True)
+        .filter(Coin.status == "active")
+        .order_by(Coin.symbol)
+        .all()
+    )
+
+    trades_by_coin = defaultdict(list)
+    for t in Trade.query.filter_by(status="closed").order_by(Trade.coin_id, Trade.closed_at).all():
+        trades_by_coin[t.coin_id].append(t.pnl_net or 0)
+
+    perf_map = {}
+    for coin_id, pnls in trades_by_coin.items():
+        n = len(pnls)
+        wins = [p for p in pnls if p > 0]
+        losses = [p for p in pnls if p <= 0]
+        total_pnl = sum(pnls)
+        gross_loss = abs(sum(losses))
+        equity = np.cumsum(pnls)
+        peak = np.maximum.accumulate(equity)
+        max_dd = float((peak - equity).max()) if n > 0 else 0.0
+        perf_map[coin_id] = SimpleNamespace(
+            total_trades=n, win_count=len(wins),
+            win_rate=round(len(wins) / n, 4),
+            total_pnl=round(total_pnl, 4),
+            max_drawdown=round(max_dd, 4),
+        )
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Symbol", "Model", "Win Rate (%)", "Max DD ($)", "Trades", "Total PnL ($)", "Last Signal", "Status"])
+    for coin, meta, sel in rows:
+        perf = perf_map.get(coin.id)
+        w.writerow([
+            coin.symbol,
+            meta.model_type if meta else "",
+            f"{perf.win_rate * 100:.1f}" if perf and perf.win_rate else "",
+            f"{perf.max_drawdown:.2f}" if perf and perf.max_drawdown else "",
+            perf.total_trades if perf and perf.total_trades else "",
+            f"{perf.total_pnl:+.2f}" if perf and perf.total_pnl is not None else "",
+            coin.last_signal_at.strftime("%Y-%m-%d %H:%M") if coin.last_signal_at else "",
+            coin.status,
+        ])
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=coins.csv"})
 
 
 @bp.get("/coins/<symbol>")

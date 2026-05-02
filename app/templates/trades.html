@@ -6,6 +6,10 @@
   <h1 class="text-xl font-bold">Trades</h1>
   <div class="flex items-center gap-3">
     <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
+    <a href="/paper/trades/export.csv?symbol={{ symbol }}&status={{ status }}&direction={{ direction }}"
+       class="text-xs text-blue-400 border border-blue-800 rounded px-3 py-1 hover:bg-blue-900/30">
+      ⬇ CSV
+    </a>
     <button
       hx-post="/paper/trades/delete-all"
       hx-confirm="Hapus SEMUA trade? Tindakan ini tidak bisa dibatalkan."
