@@ -30,7 +30,7 @@
         </td>
         <td class="px-4 py-2 text-right text-red-400">
           {% if v.backtest_summary %}
-            {{ '%.1f' | format(v.backtest_summary.mean_drawdown_lev3x * 100) }}%{% if v.backtest_summary.is_avg_fallback %}<span class="text-gray-500 text-xs" title="Rata-rata dari backtest_per_coin">†</span>{% endif %}
+            {{ '%.1f' | format(v.backtest_summary.mean_drawdown_lev5x * 100) }}%{% if v.backtest_summary.is_avg_fallback %}<span class="text-gray-500 text-xs" title="Rata-rata dari backtest_per_coin">†</span>{% endif %}
           {% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-xs text-gray-500">{{ v.trained_at }}</td>
