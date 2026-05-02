@@ -41,6 +41,12 @@ class PaperTradingEngine:
         self._vcb_lookback_bars     = vcb.get("lookback_bars", 24)
         self._vcb_atr_multiplier    = vcb.get("atr_multiplier", 2.5)
 
+        position_interval = int(os.getenv("POSITION_CHECK_INTERVAL_MINUTES", 5))
+        logger.info(
+            f"[PT] Init: max_hold_bars={self._max_holding_bars}h "
+            f"(check_positions interval={position_interval}m, hold maks efektif={self._max_holding_bars}h)"
+        )
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def process_signal(self, signal_row, features_df) -> Optional[Trade]:
@@ -181,7 +187,15 @@ class PaperTradingEngine:
                 elif trade.sl_price and high >= trade.sl_price:
                     exit_price, exit_reason = trade.sl_price, "sl_hit"
 
-            trade.hold_bars = (trade.hold_bars or 0) + 1
+            # Hitung hold_bars dari selisih waktu aktual (satuan candle 1h)
+            # Bug sebelumnya: diincrement tiap job run (5 menit) → efektif 2 jam.
+            # Fix: hitung jam yang berlalu sejak trade dibuka → efektif 24 jam.
+            opened_at = trade.opened_at
+            if opened_at.tzinfo is None:
+                from datetime import timezone as _tz
+                opened_at = opened_at.replace(tzinfo=_tz.utc)
+            elapsed_hours = (utcnow() - opened_at).total_seconds() / 3600
+            trade.hold_bars = max(0, int(elapsed_hours))
             if exit_price is None and trade.hold_bars >= self._max_holding_bars:
                 exit_price, exit_reason = close, "time_exit"
 
