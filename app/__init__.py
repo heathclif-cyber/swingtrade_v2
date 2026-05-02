@@ -406,9 +406,10 @@ def _auto_seed(app: Flask) -> None:
             created.append(meta)
         db.session.flush()
 
-        # ModelSelection default → lstm jika ada, jika tidak → first available
+        # ModelSelection default → main_type (ensemble_v2) jika ada, fallback ke first available
+        main_type = main_types[0] if main_types else created[0].model_type
         default = next(
-            (m for m in created if m.model_type == "lstm"), created[0]
+            (m for m in created if m.model_type == main_type), created[0]
         )
         sel = ModelSelection(coin_id=coin.id, model_meta_id=default.id)
         db.session.add(sel)

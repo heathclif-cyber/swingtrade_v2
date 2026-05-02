@@ -32,7 +32,13 @@ def run(app: Flask) -> None:
 
         check_and_free()
 
-        if not get_active_version():
+        version = get_active_version()
+        logger.info(
+            f"[generate_signals] Mulai — versi={version['model_type'] if version else 'NONE'}, "
+            f"run_id={version['run_id'] if version else 'N/A'}"
+        )
+
+        if not version:
             logger.error("[generate_signals] Tidak ada versi model aktif di registry")
             return
 
