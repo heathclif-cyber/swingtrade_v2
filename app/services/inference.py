@@ -30,6 +30,29 @@ logger = logging.getLogger(__name__)
 N_FEATURES = get_n_features()
 
 
+def _resolve_model_path(relative_path: str):
+    """Resolve path model; auto-fallback ke models/<filename> jika subfolder tidak ditemukan.
+
+    Ini menangani kasus stale DB dengan path versi lama seperti
+    'models/v20260425_170250/lstm_best.pt' padahal file sudah dipindah ke 'models/lstm_best.pt'.
+    """
+    from pathlib import Path
+    path = resolve_path(relative_path)
+    if not path.exists():
+        fallback = resolve_path("models") / Path(relative_path).name
+        if fallback.exists():
+            logger.warning(
+                f"[inference] Path '{path}' tidak ditemukan — "
+                f"auto-fallback ke '{fallback}' (path DB lama?)"
+            )
+            return fallback
+        logger.error(
+            f"[inference] File tidak ditemukan: '{path}' "
+            f"(fallback '{fallback}' juga tidak ada)"
+        )
+    return path
+
+
 # ─── Model bundle ────────────────────────────────────────────────────────────
 
 class _ModelBundle:
@@ -125,7 +148,7 @@ class InferenceService:
 
         if (model_type == "lstm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
             lstm_model = load_lstm(
-                path        = resolve_path(meta.model_path),
+                path        = _resolve_model_path(meta.model_path),
                 n_features  = N_FEATURES,
                 hidden_size = cfg.get("lstm_hidden", 128),
                 num_layers  = cfg.get("lstm_layers", 2),
@@ -136,10 +159,10 @@ class InferenceService:
             lstm_model.eval()
 
             if getattr(meta, "scaler_path", None):
-                scaler = joblib.load(resolve_path(meta.scaler_path))
+                scaler = joblib.load(_resolve_model_path(meta.scaler_path))
 
         if (model_type == "lgbm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
-            lgbm_path = resolve_path(meta.model_path).parent / "lgbm_baseline.pkl"
+            lgbm_path = _resolve_model_path(meta.model_path).parent / "lgbm_baseline.pkl"
             if lgbm_path.exists():
                 lgbm_model = joblib.load(lgbm_path)
 

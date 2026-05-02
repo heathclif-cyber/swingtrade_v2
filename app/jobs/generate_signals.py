@@ -58,17 +58,23 @@ def run(app: Flask) -> None:
 
         for coin in coins:
             try:
-                _process_coin(coin, data_svc, engine, db, utcnow,
-                              Signal, ModelMeta, ModelSelection)
-                ok += 1
+                status = _process_coin(coin, data_svc, engine, db, utcnow,
+                                       Signal, ModelMeta, ModelSelection)
+                if status == "skip":
+                    skip += 1
+                elif status == "fail":
+                    fail += 1
+                    logger.warning(f"[generate_signals] {coin.symbol} inference gagal (predict=None)")
+                else:
+                    ok += 1
             except Exception as e:
-                logger.error(f"[generate_signals] {coin.symbol} error: {e}", exc_info=True)
+                logger.error(f"[generate_signals] {coin.symbol} error tak tertangani: {e}", exc_info=True)
                 fail += 1
             finally:
                 gc.collect()
                 time.sleep(0.3)
 
-        logger.info(f"[generate_signals] Selesai: {ok} OK, {skip} skip, {fail} gagal / {len(coins)} koin")
+        logger.info(f"[generate_signals] Selesai: {ok} prediksi tersimpan, {skip} skip, {fail} gagal / {len(coins)} koin")
 
 
 def _process_coin(coin, data_svc, engine, db, utcnow,
@@ -81,13 +87,13 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     sel = ModelSelection.query.filter_by(coin_id=coin.id).first()
     if not sel:
         logger.warning(f"[{symbol}] Tidak ada ModelSelection — skip")
-        return
+        return "skip"
     logger.debug(f"[{symbol}] ModelSelection id={sel.id} → model_meta_id={sel.model_meta_id}")
 
     meta = ModelMeta.query.get(sel.model_meta_id)
     if not meta:
         logger.warning(f"[{symbol}] ModelMeta id={sel.model_meta_id} tidak ditemukan — skip")
-        return
+        return "skip"
     logger.debug(f"[{symbol}] ModelMeta: type={meta.model_type!r}")
 
     # Fetch + engineer features
@@ -95,7 +101,7 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     features_df = data_svc.prepare_latest_features(symbol)
     if features_df is None:
         logger.warning(f"[{symbol}] features_df=None — kemungkinan data Binance tidak cukup atau engineer_features gagal")
-        return
+        return "skip"
     logger.info(f"[{symbol}] Features OK: {features_df.shape[0]} bars × {features_df.shape[1]} cols")
 
     # Inference — gunakan model_type dari ModelMeta (single source of truth)
@@ -105,7 +111,7 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     result = svc.predict(symbol, features_df, model_type=model_type)
     if result is None:
         logger.warning(f"[{symbol}] predict=None — inference gagal atau exception (lihat log di atas)")
-        return
+        return "fail"
 
     direction  = result["direction"]
     confidence = result["confidence"]
@@ -166,6 +172,7 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
 
     db.session.commit()
     logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f} → tersimpan (id={signal.id})")
+    return "ok"
 
     # Kirim notifikasi Telegram untuk signal LONG/SHORT
     if direction in ("LONG", "SHORT"):
