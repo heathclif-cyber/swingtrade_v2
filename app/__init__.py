@@ -67,8 +67,8 @@ def _init_extensions(app: Flask) -> None:
         else:
             _ensure_model_variants(app)
             _update_model_meta(app)
-            _sync_ensemble_model_type(app)
             _fix_stale_model_paths(app)
+            _migrate_selection_to_lstm(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -407,11 +407,8 @@ def _auto_seed(app: Flask) -> None:
             created.append(meta)
         db.session.flush()
 
-        # ModelSelection default → main_type (ensemble_v2) jika ada, fallback ke first available
-        main_type = main_types[0] if main_types else created[0].model_type
-        default = next(
-            (m for m in created if m.model_type == main_type), created[0]
-        )
+        # ModelSelection default → lstm
+        default = next((m for m in created if m.model_type == "lstm"), created[0])
         sel = ModelSelection(coin_id=coin.id, model_meta_id=default.id)
         db.session.add(sel)
 
@@ -505,48 +502,33 @@ def _fix_stale_model_paths(app: Flask) -> None:
         logger.info(f"[fix_stale_paths] {updated} ModelMeta records diperbaiki path-nya")
 
 
-def _sync_ensemble_model_type(app: Flask) -> None:
-    """Update existing ModelMeta records with old model_type='ensemble' to registry value.
-
-    Migrasi satu-kali untuk memperbaiki record yang dibuat oleh _auto_seed()
-    versi lama yang masih hardcode model_type='ensemble'.
-    """
-    import json
+def _migrate_selection_to_lstm(app: Flask) -> None:
+    """Pindahkan semua ModelSelection yang mengarah ke non-lstm (ensemble_v2/lgbm) ke lstm."""
     import logging
-    from pathlib import Path
     from app.extensions import db
     from app.models.model_meta import ModelMeta
+    from app.models.model_selection import ModelSelection
 
     logger = logging.getLogger(__name__)
 
-    models_dir = Path(__file__).parent.parent / "models"
-    registry_path = models_dir / "model_registry.json"
-    if not registry_path.exists():
-        return
-
-    with open(registry_path) as f:
-        registry = json.load(f)
-
-    versions_by_type = {v["model_type"]: v for v in registry["versions"]}
-
-    # Cari record existing dengan model_type="ensemble" (versi lama)
-    old_records = ModelMeta.query.filter_by(model_type="ensemble").all()
-    if not old_records:
-        return
-
-    # Tentukan model_type ensemble baru dari registry (misal "ensemble_v2")
-    new_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
-    if not new_types:
-        return
-
-    new_type = new_types[0]
-
-    logger.info(
-        f"[sync_ensemble] Migrasi {len(old_records)} record: "
-        f"'ensemble' → '{new_type}'"
+    non_lstm = (
+        ModelSelection.query
+        .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id)
+        .filter(ModelMeta.model_type != "lstm")
+        .all()
     )
-    for meta in old_records:
-        meta.model_type = new_type
+    if not non_lstm:
+        return
 
-    db.session.commit()
-    logger.info(f"[sync_ensemble] Selesai. {len(old_records)} record di-update.")
+    updated = 0
+    for sel in non_lstm:
+        lstm_meta = ModelMeta.query.filter_by(
+            coin_id=sel.coin_id, model_type="lstm"
+        ).first()
+        if lstm_meta:
+            sel.model_meta_id = lstm_meta.id
+            updated += 1
+
+    if updated:
+        db.session.commit()
+        logger.info(f"[migrate_to_lstm] {updated} ModelSelection dipindahkan ke lstm")

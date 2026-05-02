@@ -72,7 +72,7 @@ def select_model():
 
     data       = request.get_json(force=True)
     symbol     = data.get("symbol")
-    model_type = data.get("model_type", "ensemble")
+    model_type = data.get("model_type", "lstm")
 
     if not symbol:
         return jsonify({"error": "symbol wajib diisi"}), 400

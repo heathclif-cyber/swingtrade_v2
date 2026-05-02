@@ -81,7 +81,7 @@ class InferenceService:
         self,
         symbol: str,
         features_df,          # DataFrame dari data_service
-        model_type: str = "ensemble",
+        model_type: str = "lstm",
     ) -> Optional[dict]:
         """
         Return {direction, confidence, proba, entry_price, atr_value}
@@ -197,7 +197,7 @@ class InferenceService:
         if model_type == "lgbm":
             return self._lgbm_proba(df, bundle)
 
-        # ensemble
+        # ── Ensemble ──────────────────────────────────────────────────────────
         lgbm_p = self._lgbm_proba(df, bundle)
         lstm_p = self._lstm_proba(df, bundle, seq_len, InferenceDataService)
         combined = np.concatenate([lgbm_p, lstm_p]).reshape(1, -1)  # (1, 6)
@@ -207,8 +207,40 @@ class InferenceService:
         else:
             proba = (lgbm_p + lstm_p) / 2
 
-        if bundle.calibrator is not None:
-            proba = bundle.calibrator.transform(proba.reshape(1, -1))[0]
+        # ═══════════════════════════════════════════════════════════════════════
+        # CALIBRATOR — DINONAKTIFKAN SEMENTARA
+        # ═══════════════════════════════════════════════════════════════════════
+        # Penyebab: ProbabilityCalibrator (IsotonicRegression) over-calibrates
+        # ke kelas FLAT karena ketidakseimbangan kelas di validation set.
+        #
+        # Bukti dari Railway log 15:05 UTC:
+        #   LSTM standalone (BNBUSDT): FLAT=0.5104, LONG=0.489  ← wajar
+        #   ensemble_v2 (SOLUSDT):     FLAT=0.985,  LONG=0.002  ← ekstrem
+        #   ensemble_v2 (DOGEUSDT):    FLAT=0.998,  LONG=0.001  ← ekstrem
+        #
+        # Perbedaan hanya pada ada/tidaknya calibrator. LSTM standalone
+        # tanpa calibrator menghasilkan distribusi yang jauh lebih baik.
+        #
+        # Untuk mengaktifkan kembali, hapus komentar di bawah ini.
+        # ═══════════════════════════════════════════════════════════════════════
+        logger.info(
+            f"[ensemble] proba BEFORE calibrator: "
+            f"SHORT={proba[0]:.4f} FLAT={proba[1]:.4f} LONG={proba[2]:.4f}"
+        )
+
+        # if bundle.calibrator is not None:
+        #     proba_cal = bundle.calibrator.transform(proba.reshape(1, -1))[0]
+        #     logger.info(
+        #         f"[ensemble] proba AFTER calibrator: "
+        #         f"SHORT={proba_cal[0]:.4f} FLAT={proba_cal[1]:.4f} LONG={proba_cal[2]:.4f}"
+        #     )
+        #     if proba_cal[1] > proba[1] + 0.1:
+        #         logger.warning(
+        #             f"[ensemble] Calibrator meningkatkan FLAT drastis "
+        #             f"({proba[1]:.3f} → {proba_cal[1]:.3f}) — menggunakan raw meta-learner"
+        #         )
+        #     else:
+        #         proba = proba_cal
 
         return proba
 

@@ -121,7 +121,7 @@ def _scan_new_models() -> None:
     versions = load_registry()
 
     for version in versions:
-        model_type = version.get("model_type", "ensemble")
+        model_type = version.get("model_type", "lstm")
         run_id_label = version.get("run_id", "?")  # hanya untuk logging
 
         if version.get("n_features") != N_FEATURES:

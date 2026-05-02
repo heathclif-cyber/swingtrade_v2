@@ -142,7 +142,7 @@ def write_registry(active_info: dict, dest_dir: Path, version_str: str):
         "versions": [
             {
                 "run_id":      version_str,
-                "model_type":  active_info.get("model_type", "ensemble"),
+                "model_type":  active_info.get("model_type", "lstm"),
                 "status":      "active",
                 "n_features":  active_info.get("n_features", 85),
                 "version":     active_info.get("version", ""),
@@ -203,7 +203,7 @@ def deploy(source_dir: Path, dry_run: bool) -> Path:
         print(f"  [info] Tidak ada model_registry.json di source — menggunakan default")
         active_info = {
             "run_id":      timestamp,
-            "model_type":  "ensemble",
+            "model_type":  "lstm",
             "status":      "active",
             "n_features":  85,
             "version":     "",

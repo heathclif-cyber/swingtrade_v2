@@ -85,7 +85,7 @@ def seed(dry_run: bool) -> None:
                 print(f"  [coin] SKIP {symbol} (sudah ada)")
 
             # Insert ModelMeta jika belum ada
-            model_type_val = version.get("model_type", "ensemble")
+            model_type_val = version.get("model_type", "lstm")
             meta = ModelMeta.query.filter_by(
                 coin_id=coin.id, model_type=model_type_val
             ).first()
