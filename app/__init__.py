@@ -204,7 +204,13 @@ def _update_model_meta(app: Flask) -> None:
 
 
 def _ensure_model_variants(app: Flask) -> None:
-    """Pastikan setiap koin memiliki ModelMeta untuk lgbm dan lstm (migrasi DB lama)."""
+    """Pastikan setiap koin memiliki ModelMeta untuk lgbm dan lstm.
+
+    Jika lgbm/lstm tidak ada di registry (misal hanya ada ensemble_v2),
+    buat record dari paths versi ensemble utama — karena semua file model
+    (lstm_best.pt, lstm_scaler.pkl, lgbm_baseline.pkl) ada di direktori
+    models/ yang sama.
+    """
     import json
     import logging
     from pathlib import Path
@@ -224,17 +230,27 @@ def _ensure_model_variants(app: Flask) -> None:
         registry = json.load(f)
 
     versions_by_type = {v["model_type"]: v for v in registry["versions"]}
-    missing_types = [t for t in ("lgbm", "lstm") if t not in versions_by_type]
-    if missing_types:
-        logger.warning(f"[ensure_model_variants] Tipe tidak ada di registry, dilewati: {missing_types}")
-    types_to_process = [t for t in ("lgbm", "lstm") if t in versions_by_type]
-    if not types_to_process:
+
+    # Cari tipe ensemble utama (bukan lgbm/lstm) sebagai referensi paths
+    main_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
+    if not main_types:
+        logger.warning("[ensure_model_variants] Tidak ada tipe model utama di registry")
         return
 
-    # Gunakan inference_config dari versi ensemble (atau versi pertama yang ada)
+    main_type = main_types[0]
+    main_version = versions_by_type[main_type]
+
+    # Tentukan legacy types yang perlu dibuat
+    # Jika lgbm/lstm sudah ada di registry → buat dari entry masing-masing
+    # Jika tidak ada → buat dari main_version (paths sama, file satu direktori)
+    legacy_types = ("lgbm", "lstm")
+    types_to_process = [t for t in legacy_types if t not in versions_by_type]
+    if not types_to_process:
+        # Semua legacy type sudah ada di registry, buat dari entry masing-masing
+        types_to_process = list(legacy_types)
+
     from app.services.model_registry import resolve_path
-    ref_version = versions_by_type.get("ensemble") or next(iter(versions_by_type.values()))
-    config_path = resolve_path(ref_version["paths"]["inference_config"])
+    config_path = resolve_path(main_version["paths"]["inference_config"])
     with open(config_path) as f:
         inference_config = json.load(f)
 
@@ -253,8 +269,15 @@ def _ensure_model_variants(app: Flask) -> None:
             ).first()
             if exists:
                 continue
-            v = versions_by_type[vtype]
-            p = v.get("paths", {})
+
+            # Paths: dari registry jika ada entry khusus, atau fallback ke main_version
+            if vtype in versions_by_type:
+                v = versions_by_type[vtype]
+                p = v.get("paths", {})
+            else:
+                v = main_version
+                p = main_version.get("paths", {})
+
             meta = ModelMeta(
                 coin_id               = coin.id,
                 model_type            = vtype,
@@ -264,8 +287,9 @@ def _ensure_model_variants(app: Flask) -> None:
                 n_features            = v.get("n_features", 85),
                 model_path            = p.get("lstm") or p.get("lgbm"),
                 scaler_path           = p.get("scaler"),
-                meta_learner_path     = None,
-                calibrator_path       = None,
+                # lgbm/lstm standalone tidak pakai meta_learner / calibrator
+                meta_learner_path     = p.get("meta") if vtype not in ("lgbm", "lstm") else None,
+                calibrator_path       = p.get("calibrator") if vtype not in ("lgbm", "lstm") else None,
                 inference_config_path = p.get("inference_config"),
                 status                = "available",
                 trained_at            = trained_at,
@@ -276,7 +300,7 @@ def _ensure_model_variants(app: Flask) -> None:
 
     if added:
         db.session.commit()
-        logger.info(f"[ensure_model_variants] Ditambahkan {added} ModelMeta baru (lgbm/lstm)")
+        logger.info(f"[ensure_model_variants] Ditambahkan {added} ModelMeta baru ({', '.join(types_to_process)})")
 
 
 def _auto_seed(app: Flask) -> None:
@@ -331,16 +355,30 @@ def _auto_seed(app: Flask) -> None:
         db.session.add(coin)
     db.session.flush()
     
-    # Kumpulkan semua versi dari registry (ensemble, lgbm, lstm)
+    # Kumpulkan semua versi dari registry (ensemble_v2, lgbm, lstm)
     trained_at = datetime.fromisoformat(inference_config.get("created_at", "2026-04-25T17:02:50+00:00"))
     bs = inference_config.get("backtest_summary", {})
     per_coin_data = inference_config.get("backtest_per_coin", {})
 
     versions_by_type = {v["model_type"]: v for v in registry["versions"]}
 
+    # Cari tipe ensemble utama sebagai referensi paths untuk legacy lgbm/lstm
+    main_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
+    main_version = versions_by_type[main_types[0]] if main_types else next(iter(versions_by_type.values()))
+
+    # Selalu buat lgbm/lstm: dari registry jika ada, fallback ke main_version
+    all_types_to_seed = list(dict.fromkeys(
+        list(versions_by_type.keys()) + ["lgbm", "lstm"]
+    ))
+
     def _make_meta(coin, vtype):
-        v = versions_by_type.get(vtype, {})
-        p = v.get("paths", {})
+        # Paths: dari registry jika ada entry khusus, atau fallback ke main_version
+        if vtype in versions_by_type:
+            v = versions_by_type[vtype]
+            p = v.get("paths", {})
+        else:
+            v = main_version
+            p = main_version.get("paths", {})
         per_coin = per_coin_data.get(coin.symbol, {})
         return ModelMeta(
             coin_id               = coin.id,
@@ -351,8 +389,9 @@ def _auto_seed(app: Flask) -> None:
             n_features            = v.get("n_features", 85),
             model_path            = p.get("lstm") or p.get("lgbm"),
             scaler_path           = p.get("scaler"),
-            meta_learner_path     = p.get("meta"),
-            calibrator_path       = p.get("calibrator"),
+            # lgbm/lstm standalone tidak pakai meta_learner / calibrator
+            meta_learner_path     = p.get("meta") if vtype not in ("lgbm", "lstm") else None,
+            calibrator_path       = p.get("calibrator") if vtype not in ("lgbm", "lstm") else None,
             inference_config_path = p.get("inference_config"),
             status                = "available",
             trained_at            = trained_at,
@@ -361,7 +400,7 @@ def _auto_seed(app: Flask) -> None:
 
     for coin in Coin.query.all():
         created = []
-        for vtype in versions_by_type:
+        for vtype in all_types_to_seed:
             meta = _make_meta(coin, vtype)
             db.session.add(meta)
             created.append(meta)
@@ -375,7 +414,7 @@ def _auto_seed(app: Flask) -> None:
         db.session.add(sel)
 
     db.session.commit()
-    logger.info(f"[auto_seed] Seeded {len(symbols)} coins × {len(versions_by_type)} model types (default={default.model_type})")
+    logger.info(f"[auto_seed] Seeded {len(symbols)} coins × {len(all_types_to_seed)} model types (default={default.model_type})")
 
 
 def _sync_ensemble_model_type(app: Flask) -> None:
