@@ -68,6 +68,7 @@ def _init_extensions(app: Flask) -> None:
             _ensure_model_variants(app)
             _update_model_meta(app)
             _sync_ensemble_model_type(app)
+            _fix_stale_model_paths(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -416,6 +417,92 @@ def _auto_seed(app: Flask) -> None:
 
     db.session.commit()
     logger.info(f"[auto_seed] Seeded {len(symbols)} coins × {len(all_types_to_seed)} model types (default={default.model_type})")
+
+
+def _fix_stale_model_paths(app: Flask) -> None:
+    """Sync ModelMeta path fields from current registry.json.
+    
+    Existing ModelMeta records may have stale paths if model_registry.json
+    was updated after they were created (e.g., subfolder removed from paths).
+    Only updates records whose current resolved path file does not exist.
+    """
+    import json
+    import logging
+    from pathlib import Path
+    from app.extensions import db
+    from app.models.model_meta import ModelMeta
+    from app.services.model_registry import resolve_path
+
+    logger = logging.getLogger(__name__)
+
+    models_dir = Path(__file__).parent.parent / "models"
+    registry_path = models_dir / "model_registry.json"
+    if not registry_path.exists():
+        return
+
+    with open(registry_path) as f:
+        registry = json.load(f)
+
+    versions_by_type = {v["model_type"]: v for v in registry["versions"]}
+
+    # Build path map per model_type
+    reg_paths = {}
+    for mt, v in versions_by_type.items():
+        reg_paths[mt] = v.get("paths", {})
+
+    # Fallback: main type (ensemble) for any model_type not in registry
+    main_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
+    fallback_paths = reg_paths.get(main_types[0], {}) if main_types else {}
+
+    updated = 0
+    for meta in ModelMeta.query.all():
+        p = reg_paths.get(meta.model_type, fallback_paths)
+        if not p:
+            continue
+
+        dirty = False
+
+        # model_path
+        new_val = p.get("lstm") or p.get("lgbm")
+        if new_val and meta.model_path and meta.model_path != new_val:
+            if not resolve_path(meta.model_path).exists():
+                meta.model_path = new_val
+                dirty = True
+
+        # scaler_path
+        new_val = p.get("scaler")
+        if new_val and meta.scaler_path and meta.scaler_path != new_val:
+            if not resolve_path(meta.scaler_path).exists():
+                meta.scaler_path = new_val
+                dirty = True
+
+        # meta_learner_path
+        new_val = p.get("meta")
+        if new_val and meta.meta_learner_path and meta.meta_learner_path != new_val:
+            if not resolve_path(meta.meta_learner_path).exists():
+                meta.meta_learner_path = new_val
+                dirty = True
+
+        # calibrator_path
+        new_val = p.get("calibrator")
+        if new_val and meta.calibrator_path and meta.calibrator_path != new_val:
+            if not resolve_path(meta.calibrator_path).exists():
+                meta.calibrator_path = new_val
+                dirty = True
+
+        # inference_config_path
+        new_val = p.get("inference_config")
+        if new_val and meta.inference_config_path and meta.inference_config_path != new_val:
+            if not resolve_path(meta.inference_config_path).exists():
+                meta.inference_config_path = new_val
+                dirty = True
+
+        if dirty:
+            updated += 1
+
+    if updated:
+        db.session.commit()
+        logger.info(f"[fix_stale_paths] {updated} ModelMeta records diperbaiki path-nya")
 
 
 def _sync_ensemble_model_type(app: Flask) -> None:
