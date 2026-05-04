@@ -67,8 +67,8 @@ def _init_extensions(app: Flask) -> None:
         else:
             _ensure_model_variants(app)
             _update_model_meta(app)
+            _sync_ensemble_model_type(app)
             _fix_stale_model_paths(app)
-            _migrate_selection_to_hierarchical(app)
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -205,11 +205,11 @@ def _update_model_meta(app: Flask) -> None:
 
 
 def _ensure_model_variants(app: Flask) -> None:
-    """Pastikan setiap koin memiliki ModelMeta untuk hierarchical_cascade, lgbm, dan lstm.
+    """Pastikan setiap koin memiliki ModelMeta untuk lgbm dan lstm.
 
-    Jika lgbm/lstm tidak ada di registry (misal hanya ada hierarchical_cascade),
-    buat record dari paths versi utama — karena semua file model
-    (lstm_best.pt, lstm_scaler.pkl, lgbm_baseline.pkl, lgbm_h4.pkl) ada di direktori
+    Jika lgbm/lstm tidak ada di registry (misal hanya ada ensemble_v2),
+    buat record dari paths versi ensemble utama — karena semua file model
+    (lstm_best.pt, lstm_scaler.pkl, lgbm_baseline.pkl) ada di direktori
     models/ yang sama.
     """
     import json
@@ -232,7 +232,7 @@ def _ensure_model_variants(app: Flask) -> None:
 
     versions_by_type = {v["model_type"]: v for v in registry["versions"]}
 
-    # Cari tipe utama (bukan lgbm/lstm — misal hierarchical_cascade) sebagai referensi paths
+    # Cari tipe ensemble utama (bukan lgbm/lstm) sebagai referensi paths
     main_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
     if not main_types:
         logger.warning("[ensure_model_variants] Tidak ada tipe model utama di registry")
@@ -363,7 +363,7 @@ def _auto_seed(app: Flask) -> None:
 
     versions_by_type = {v["model_type"]: v for v in registry["versions"]}
 
-    # Cari tipe utama (bukan lgbm/lstm — misal hierarchical_cascade) sebagai referensi paths
+    # Cari tipe ensemble utama sebagai referensi paths untuk legacy lgbm/lstm
     main_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
     main_version = versions_by_type[main_types[0]] if main_types else next(iter(versions_by_type.values()))
 
@@ -407,10 +407,10 @@ def _auto_seed(app: Flask) -> None:
             created.append(meta)
         db.session.flush()
 
-        # ModelSelection default → hierarchical_cascade (primary), fallback lstm
+        # ModelSelection default → main_type (ensemble_v2) jika ada, fallback ke first available
+        main_type = main_types[0] if main_types else created[0].model_type
         default = next(
-            (m for m in created if m.model_type == "hierarchical_cascade"),
-            next((m for m in created if m.model_type == "lstm"), created[0])
+            (m for m in created if m.model_type == main_type), created[0]
         )
         sel = ModelSelection(coin_id=coin.id, model_meta_id=default.id)
         db.session.add(sel)
@@ -505,49 +505,48 @@ def _fix_stale_model_paths(app: Flask) -> None:
         logger.info(f"[fix_stale_paths] {updated} ModelMeta records diperbaiki path-nya")
 
 
-def _migrate_selection_to_hierarchical(app: Flask) -> None:
-    """Pindahkan ModelSelection ke hierarchical_cascade (prioritas utama).
+def _sync_ensemble_model_type(app: Flask) -> None:
+    """Update existing ModelMeta records with old model_type='ensemble' to registry value.
 
-    Urutan prioritas:
-      1. hierarchical_cascade (pipeline baru — H4 LGBM → H1 LGBM → LSTM)
-      2. lstm (standalone — fallback jika hierarchical tidak tersedia)
-      3. legacy (ensemble_v2, lgbm — hanya jika tidak ada pilihan lain)
+    Migrasi satu-kali untuk memperbaiki record yang dibuat oleh _auto_seed()
+    versi lama yang masih hardcode model_type='ensemble'.
     """
+    import json
     import logging
+    from pathlib import Path
     from app.extensions import db
     from app.models.model_meta import ModelMeta
-    from app.models.model_selection import ModelSelection
 
     logger = logging.getLogger(__name__)
 
-    PRIORITY = ("hierarchical_cascade", "lstm")
+    models_dir = Path(__file__).parent.parent / "models"
+    registry_path = models_dir / "model_registry.json"
+    if not registry_path.exists():
+        return
 
-    updated = 0
-    for sel in ModelSelection.query.all():
-        current_meta = ModelMeta.query.get(sel.model_meta_id)
-        if not current_meta:
-            continue
+    with open(registry_path) as f:
+        registry = json.load(f)
 
-        # Jika sudah hierarchical_cascade — skip
-        if current_meta.model_type == "hierarchical_cascade":
-            continue
+    versions_by_type = {v["model_type"]: v for v in registry["versions"]}
 
-        # Cari model yang lebih prioritas
-        for target_type in PRIORITY:
-            if target_type == current_meta.model_type:
-                break  # current sudah paling prioritas
-            target_meta = ModelMeta.query.filter_by(
-                coin_id=sel.coin_id, model_type=target_type
-            ).first()
-            if target_meta:
-                old_type = current_meta.model_type
-                sel.model_meta_id = target_meta.id
-                updated += 1
-                logger.info(
-                    f"[migrate] Coin {sel.coin_id}: {old_type} → {target_type}"
-                )
-                break
+    # Cari record existing dengan model_type="ensemble" (versi lama)
+    old_records = ModelMeta.query.filter_by(model_type="ensemble").all()
+    if not old_records:
+        return
 
-    if updated:
-        db.session.commit()
-        logger.info(f"[migrate_to_hierarchical] {updated} ModelSelection dipindahkan")
+    # Tentukan model_type ensemble baru dari registry (misal "ensemble_v2")
+    new_types = [t for t in versions_by_type if t not in ("lgbm", "lstm")]
+    if not new_types:
+        return
+
+    new_type = new_types[0]
+
+    logger.info(
+        f"[sync_ensemble] Migrasi {len(old_records)} record: "
+        f"'ensemble' → '{new_type}'"
+    )
+    for meta in old_records:
+        meta.model_type = new_type
+
+    db.session.commit()
+    logger.info(f"[sync_ensemble] Selesai. {len(old_records)} record di-update.")

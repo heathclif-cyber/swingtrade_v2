@@ -1,16 +1,9 @@
 """
-deploy/deploy_model.py — Deployment Bridge Script (Hierarchical Cascade)
+deploy/deploy_model.py — Deployment Bridge Script
 
 Jembatan antara training pipeline output dan web app.
-Membaca model_registry.json dari folder source, menyalin file model ke
+Membaca model_registry.json dari folder source, menyalin 7 file model ke
 root models/, dan menulis model_registry.json dengan format yang web app mengerti.
-
-Arsitektur yang didukung:
-  - hierarchical_cascade: H4 LGBM → H1 LGBM → LSTM (DEFAULT)
-  - legacy ensemble: LGBM + LSTM → MetaLearner (DEPRECATED)
-
-File H4 (lgbm_h4.pkl, h4_feature_cols.json) WAJIB ada.
-File legacy (ensemble_meta.pkl, calibrator.pkl) bersifat OPSIONAL.
 
 Tidak ada folder backup — semua file langsung di models/ (seamless).
 
@@ -32,20 +25,13 @@ MODELS_DIR = ROOT / "models"
 REGISTRY   = MODELS_DIR / "model_registry.json"
 
 REQUIRED_FILES = [
-    "lgbm_baseline.pkl",       # H1 LGBM Entry Signal Generator
-    "lstm_best.pt",            # LSTM Momentum Confirmation
-    "lstm_scaler.pkl",         # LSTM feature scaler
-    "lgbm_h4.pkl",             # H4 LGBM Regime Filter ← WAJIB untuk hierarchical
-    "h4_feature_cols.json",    # Feature columns H4 ← WAJIB untuk hierarchical
-    "inference_config.json",   # Config hasil pipeline
-    "feature_cols_v2.json",    # Feature columns H1+LSTM
-]
-
-# File LEGACY (ensemble) — opsional. Jika tidak ada, hanya log warning.
-OPTIONAL_FILES = [
-    "ensemble_meta.pkl",       # Meta-learner ensemble (DEPRECATED)
-    "calibrator.pkl",          # Probability calibrator (DEPRECATED)
-    "h4_calibrator.pkl",       # H4 probability calibrator (opsional)
+    "lgbm_baseline.pkl",
+    "lstm_best.pt",
+    "lstm_scaler.pkl",
+    "ensemble_meta.pkl",
+    "calibrator.pkl",
+    "inference_config.json",
+    "feature_cols_v2.json",
 ]
 
 
@@ -138,7 +124,6 @@ def write_registry(active_info: dict, dest_dir: Path, version_str: str):
     """Tulis model_registry.json dengan format versions.
 
     Semua path menunjuk langsung ke root models/ (tanpa subfolder versi).
-    Mencakup path untuk hierarchical_cascade (H4 + H1 + LSTM) dan legacy ensemble.
 
     Args:
         active_info: Informasi model aktif dari registry.
@@ -146,14 +131,8 @@ def write_registry(active_info: dict, dest_dir: Path, version_str: str):
         version_str: Timestamp string untuk run_id.
     """
     paths = {
-        # Hierarchical Cascade (primary)
-        "lgbm":             "models/lgbm_baseline.pkl",
         "lstm":             "models/lstm_best.pt",
         "scaler":           "models/lstm_scaler.pkl",
-        "lgbm_h4":          "models/lgbm_h4.pkl",
-        "h4_feat_cols":     "models/h4_feature_cols.json",
-        "h4_calibrator":    "models/h4_calibrator.pkl",
-        # Legacy ensemble (DEPRECATED)
         "meta":             "models/ensemble_meta.pkl",
         "calibrator":       "models/calibrator.pkl",
         "inference_config": "models/inference_config.json",
@@ -163,7 +142,7 @@ def write_registry(active_info: dict, dest_dir: Path, version_str: str):
         "versions": [
             {
                 "run_id":      version_str,
-                "model_type":  active_info.get("model_type", "hierarchical_cascade"),
+                "model_type":  active_info.get("model_type", "ensemble"),
                 "status":      "active",
                 "n_features":  active_info.get("n_features", 85),
                 "version":     active_info.get("version", ""),
@@ -197,30 +176,20 @@ def deploy(source_dir: Path, dry_run: bool) -> Path:
     timestamp  = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     print(f"\n{'='*60}")
-    print(f"  DEPLOY MODEL — Hierarchical Cascade")
+    print(f"  DEPLOY MODEL — Seamless (tanpa backup)")
     print(f"{'='*60}")
     print(f"  Source  : {source_dir}")
     print(f"  Dry run : {'YES' if dry_run else 'NO'}")
     print(f"{'='*60}\n")
 
     # ── 1. Validasi file sumber ──────────────────────────────────────────────
-    # Required files — harus ada semua
     missing = [f for f in REQUIRED_FILES if not (source_dir / f).exists()]
     if missing:
-        print(f"  [error] File WAJIB tidak ditemukan di {source_dir}:")
+        print(f"  [error] File tidak ditemukan di {source_dir}:")
         for f in missing:
             print(f"         - {f}")
         sys.exit(1)
-    print(f"  [ok] Semua {len(REQUIRED_FILES)} file wajib ditemukan")
-
-    # Optional files — hanya warning
-    opt_missing = [f for f in OPTIONAL_FILES if not (source_dir / f).exists()]
-    if opt_missing:
-        print(f"  [info] File OPSIONAL tidak ditemukan (skip):")
-        for f in opt_missing:
-            print(f"         - {f}")
-    else:
-        print(f"  [ok] Semua {len(OPTIONAL_FILES)} file opsional ditemukan")
+    print(f"  [ok] Semua {len(REQUIRED_FILES)} file model ditemukan")
 
     # ── 2. Baca registry + aktifkan model ────────────────────────────────────
     src_registry = source_dir / "model_registry.json"
@@ -234,7 +203,7 @@ def deploy(source_dir: Path, dry_run: bool) -> Path:
         print(f"  [info] Tidak ada model_registry.json di source — menggunakan default")
         active_info = {
             "run_id":      timestamp,
-            "model_type":  "lstm",
+            "model_type":  "ensemble",
             "status":      "active",
             "n_features":  85,
             "version":     "",
@@ -252,17 +221,13 @@ def deploy(source_dir: Path, dry_run: bool) -> Path:
         config = json.load(f)
     patched = patch_inference_config(config)
 
-    # ── 4. Copy semua file (required + optional) kecuali inference_config ────
-    all_files = REQUIRED_FILES + OPTIONAL_FILES
+    # ── 4. Copy semua file kecuali inference_config ──────────────────────────
     print(f"\n  Menyalin file ke {MODELS_DIR} ...")
-    for fname in all_files:
+    for fname in REQUIRED_FILES:
         src = source_dir / fname
         dst = MODELS_DIR / fname
         if fname == "inference_config.json":
             continue  # handle terpisah dengan patch
-        if not src.exists():
-            print(f"    [skip] {fname} (tidak ditemukan di source)")
-            continue
         shutil.copy2(src, dst)
         print(f"    [copy] {fname}")
 
@@ -275,14 +240,12 @@ def deploy(source_dir: Path, dry_run: bool) -> Path:
     registry = write_registry(active_info, MODELS_DIR, timestamp)
 
     print(f"\n{'='*60}")
-    print(f"  DEPLOY BERHASIL — Hierarchical Cascade")
+    print(f"  DEPLOY BERHASIL")
     print(f"{'='*60}")
     print(f"  Registry  : {MODELS_DIR / 'model_registry.json'}")
     print(f"  Model     : {MODELS_DIR}/ (langsung, tanpa backup)")
-    print(f"\n  Langkah selanjutnya:")
-    print(f"    1. python deploy/seed_db.py             # seed DB dengan data baru")
-    print(f"    2. Update ModelSelection ke hierarchical  # Flask shell (lihat AUDIT_REPORT.md)")
-    print(f"    3. Restart app atau clear cache          # config_loader.reload_cache()")
+    print(f"\n  Jalankan deploy/seed_db.py untuk update database:")
+    print(f"    python deploy/seed_db.py")
     print(f"{'='*60}")
 
     return MODELS_DIR
