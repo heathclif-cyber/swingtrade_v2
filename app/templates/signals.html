@@ -133,9 +133,9 @@
         <td class="px-4 py-2 text-right text-xs text-green-300">
           {% if sig.tp_price and sig.entry_price %}
             {% if sig.direction == 'LONG' %}
-              +{{ '%.1f' | format((sig.tp_price - sig.entry_price) / sig.entry_price * 100) }}%
+              +{{ '%.1f' | format((sig.tp_price - sig.entry_price) / sig.entry_price * 100 * leverage) }}%
             {% else %}
-              +{{ '%.1f' | format((sig.entry_price - sig.tp_price) / sig.entry_price * 100) }}%
+              +{{ '%.1f' | format((sig.entry_price - sig.tp_price) / sig.entry_price * 100 * leverage) }}%
             {% endif %}
           {% else %}—{% endif %}
         </td>
@@ -145,9 +145,9 @@
         <td class="px-4 py-2 text-right text-xs text-red-300">
           {% if sig.sl_price and sig.entry_price %}
             {% if sig.direction == 'LONG' %}
-              {{ '%.1f' | format((sig.sl_price - sig.entry_price) / sig.entry_price * 100) }}%
+              {{ '%.1f' | format((sig.sl_price - sig.entry_price) / sig.entry_price * 100 * leverage) }}%
             {% else %}
-              {{ '%.1f' | format((sig.entry_price - sig.sl_price) / sig.entry_price * 100) }}%
+              {{ '%.1f' | format((sig.entry_price - sig.sl_price) / sig.entry_price * 100 * leverage) }}%
             {% endif %}
           {% else %}—{% endif %}
         </td>

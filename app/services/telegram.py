@@ -106,17 +106,21 @@ class TelegramService:
 <b>ATR:</b> {signal.atr_at_signal:.6f}
 """
         
+        from app.services.model_registry import load_inference_config
+        cfg = load_inference_config()
+        lev = float(cfg.get("risk", {}).get("leverage_recommended", 5.0))
+
         if signal.tp_price:
             if signal.direction == "LONG":
-                tp_pct = (signal.tp_price - signal.entry_price) / signal.entry_price * 100
+                tp_pct = (signal.tp_price - signal.entry_price) / signal.entry_price * 100 * lev
             else:
-                tp_pct = (signal.entry_price - signal.tp_price) / signal.entry_price * 100
+                tp_pct = (signal.entry_price - signal.tp_price) / signal.entry_price * 100 * lev
             text += f"<b>TP:</b> {signal.tp_price:.6f} (+{tp_pct:.1f}%)\n"
         if signal.sl_price:
             if signal.direction == "LONG":
-                sl_pct = (signal.sl_price - signal.entry_price) / signal.entry_price * 100
+                sl_pct = (signal.sl_price - signal.entry_price) / signal.entry_price * 100 * lev
             else:
-                sl_pct = (signal.entry_price - signal.sl_price) / signal.entry_price * 100
+                sl_pct = (signal.entry_price - signal.sl_price) / signal.entry_price * 100 * lev
             text += f"<b>SL:</b> {signal.sl_price:.6f} ({sl_pct:.1f}%)\n"
         
         text += f"\n<b>Time (WITA):</b> {_format_wita(signal.signal_time)}"
