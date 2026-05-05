@@ -350,7 +350,8 @@
     "num_classes": 3
   },
   "cascade": {
-    "scout_confidence_threshold": 0.6,
-    "scout_signal_threshold": 0.45
+    "scout_flat_threshold": 0.6,
+    "scout_signal_threshold": 0.55,
+    "confirmer_threshold": 0.65
   }
 }

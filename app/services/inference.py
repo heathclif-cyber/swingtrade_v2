@@ -236,12 +236,20 @@ class InferenceService:
     ) -> np.ndarray:
         """Stage 1: LGBM scout (1 bar, cepat) → Stage 2: LSTM konfirmator (32 bar, dalam).
 
-        LGBM scan anomali (ATR spike, RSI extreme, volume breakout).
-        Kalau LGBM bilang FLAT → skip LSTM, return FLAT.
-        Kalau LGBM bilang LONG/SHORT → LSTM verifikasi dengan konteks sekuensial.
+        Threshold cascade (dari config):
+          scout_flat_threshold  — LGBM FLAT confidence untuk skip LSTM
+          scout_signal_threshold — LGBM LONG/SHORT confidence minimum untuk lanjut ke LSTM
+          confirmer_threshold    — LSTM confidence minimum untuk konfirmasi sinyal
+
+        Kalau LGBM tidak yakin (conf < scout_signal_threshold) → FLAT.
+        Kalau LSTM tidak konfirmasi (conf < confirmer_threshold) → FLAT.
         """
         cascade_cfg = self._config.get("cascade", {})
-        scout_threshold = cascade_cfg.get("scout_confidence_threshold", 0.6)
+        scout_flat_threshold   = cascade_cfg.get("scout_flat_threshold", 0.6)
+        scout_signal_threshold = cascade_cfg.get("scout_signal_threshold", 0.55)
+        confirmer_threshold    = cascade_cfg.get("confirmer_threshold", 0.65)
+
+        flat_proba = np.array([0.0, 1.0, 0.0], dtype=np.float32)
 
         # Stage 1: LGBM scout
         if bundle.lgbm is not None:
@@ -249,24 +257,50 @@ class InferenceService:
             lgbm_idx = int(np.argmax(lgbm_p))
             lgbm_conf = float(lgbm_p[lgbm_idx])
 
-            if lgbm_idx == 1 and lgbm_conf >= scout_threshold:
+            # 1a. LGBM bilang FLAT dengan confidence tinggi → skip LSTM
+            if lgbm_idx == 1 and lgbm_conf >= scout_flat_threshold:
                 logger.debug(
-                    f"[cascade] LGBM scout → FLAT ({lgbm_conf:.3f} >= {scout_threshold}) "
+                    f"[cascade] LGBM scout → FLAT ({lgbm_conf:.3f} >= {scout_flat_threshold}) "
                     f"— skip LSTM"
                 )
                 return lgbm_p
 
+            # 1b. LGBM bilang LONG/SHORT tapi confidence rendah → FLAT, skip LSTM
+            if lgbm_idx != 1 and lgbm_conf < scout_signal_threshold:
+                logger.debug(
+                    f"[cascade] LGBM scout → {get_label_map_inv()[lgbm_idx]} ({lgbm_conf:.3f} < {scout_signal_threshold}) "
+                    f"— confidence scout rendah, return FLAT"
+                )
+                return flat_proba
+
             logger.debug(
-                f"[cascade] LGBM scout → {get_label_map_inv()[lgbm_idx]} ({lgbm_conf:.3f}) "
-                f"— lanjut LSTM validator"
+                f"[cascade] LGBM scout → {get_label_map_inv()[lgbm_idx]} ({lgbm_conf:.3f} >= {scout_signal_threshold}) "
+                f"— lanjut LSTM confirmer"
             )
         else:
             logger.warning("[cascade] LGBM tidak ter-load — fallback ke LSTM standalone")
 
-        # Stage 2: LSTM konfirmator (deep validation)
+        # Stage 2: LSTM confirmer (deep validation)
         if bundle.lstm is None or bundle.scaler is None:
             raise RuntimeError("Cascade butuh LSTM + scaler — tidak ter-load")
-        return self._lstm_proba(df, bundle, seq_len, data_svc_cls)
+
+        lstm_p = self._lstm_proba(df, bundle, seq_len, data_svc_cls)
+        lstm_idx = int(np.argmax(lstm_p))
+        lstm_conf = float(lstm_p[lstm_idx])
+
+        # 2a. LSTM confidence di bawah threshold → FLAT (tidak terkonfirmasi)
+        if lstm_conf < confirmer_threshold:
+            logger.debug(
+                f"[cascade] LSTM confirmer → {get_label_map_inv()[lstm_idx]} ({lstm_conf:.3f} < {confirmer_threshold}) "
+                f"— tidak terkonfirmasi, return FLAT"
+            )
+            return flat_proba
+
+        logger.debug(
+            f"[cascade] LSTM confirmer → {get_label_map_inv()[lstm_idx]} ({lstm_conf:.3f} >= {confirmer_threshold}) "
+            f"— terkonfirmasi"
+        )
+        return lstm_p
 
     # ── Validation ────────────────────────────────────────────────────────────
 
