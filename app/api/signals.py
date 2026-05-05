@@ -62,17 +62,22 @@ def signals_export_csv():
 
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Time", "Coin", "Direction", "Confidence", "Model", "Entry", "TP", "SL", "ATR", "H4 High", "H4 Low"])
+    w.writerow(["Time", "Coin", "Direction", "Confidence", "Model", "Entry", "TP", "TP%", "SL", "SL%", "ATR", "H4 High", "H4 Low"])
     for s in signals:
+        e = s.entry_price
+        tp_pct = f"{abs(s.tp_price - e) / e * 100:.1f}" if s.tp_price and e else ""
+        sl_pct = f"{abs(s.sl_price - e) / e * 100:.1f}" if s.sl_price and e else ""
         w.writerow([
             s.signal_time.strftime("%Y-%m-%d %H:%M") if s.signal_time else "",
             s.coin.symbol,
             s.direction,
             f"{s.confidence:.4f}" if s.confidence else "",
             s.model_meta.model_type if s.model_meta else "",
-            f"{s.entry_price:.4f}" if s.entry_price else "",
+            f"{e:.4f}" if e else "",
             f"{s.tp_price:.4f}" if s.tp_price else "",
+            tp_pct,
             f"{s.sl_price:.4f}" if s.sl_price else "",
+            sl_pct,
             f"{s.atr_at_signal:.4f}" if s.atr_at_signal else "",
             f"{s.h4_swing_high:.4f}" if s.h4_swing_high else "",
             f"{s.h4_swing_low:.4f}" if s.h4_swing_low else "",
@@ -94,14 +99,20 @@ def signal_detail(signal_id: int):
         except Exception:
             pass
 
+    entry = s.entry_price
+    tp_pct = round(abs(s.tp_price - entry) / entry * 100, 2) if s.tp_price and entry else None
+    sl_pct = round(abs(s.sl_price - entry) / entry * 100, 2) if s.sl_price and entry else None
+
     return jsonify({
         "id":            s.id,
         "direction":     s.direction,
         "confidence":    s.confidence,
         "model_type":    s.model_meta.model_type if s.model_meta else None,
-        "entry":         s.entry_price,
+        "entry":         entry,
         "tp":            s.tp_price,
         "sl":            s.sl_price,
+        "tp_pct":        tp_pct,
+        "sl_pct":        sl_pct,
         "atr":           s.atr_at_signal,
         "h4_swing_high": s.h4_swing_high,
         "h4_swing_low":  s.h4_swing_low,

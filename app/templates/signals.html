@@ -46,7 +46,9 @@
         <th class="px-4 py-3 text-right">Conf</th>
         <th class="px-4 py-3 text-right">Entry</th>
         <th class="px-4 py-3 text-right">TP</th>
+        <th class="px-4 py-3 text-right">TP%</th>
         <th class="px-4 py-3 text-right">SL</th>
+        <th class="px-4 py-3 text-right">SL%</th>
         <th class="px-4 py-3 text-right">H4 High</th>
         <th class="px-4 py-3 text-right">H4 Low</th>
         <th class="px-4 py-3 text-right">ATR</th>
@@ -80,8 +82,26 @@
         <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
           {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
         </td>
+        <td class="px-4 py-2 text-right text-xs text-green-300">
+          {% if sig.tp_price and sig.entry_price %}
+            {% if sig.direction == 'LONG' %}
+              +{{ '%.1f' | format((sig.tp_price - sig.entry_price) / sig.entry_price * 100) }}%
+            {% else %}
+              +{{ '%.1f' | format((sig.entry_price - sig.tp_price) / sig.entry_price * 100) }}%
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
           {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-xs text-red-300">
+          {% if sig.sl_price and sig.entry_price %}
+            {% if sig.direction == 'LONG' %}
+              {{ '%.1f' | format((sig.sl_price - sig.entry_price) / sig.entry_price * 100) }}%
+            {% else %}
+              {{ '%.1f' | format((sig.entry_price - sig.sl_price) / sig.entry_price * 100) }}%
+            {% endif %}
+          {% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
           {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
@@ -96,7 +116,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="11" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
+      <tr><td colspan="13" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -107,9 +107,17 @@ class TelegramService:
 """
         
         if signal.tp_price:
-            text += f"<b>TP:</b> {signal.tp_price:.6f}\n"
+            if signal.direction == "LONG":
+                tp_pct = (signal.tp_price - signal.entry_price) / signal.entry_price * 100
+            else:
+                tp_pct = (signal.entry_price - signal.tp_price) / signal.entry_price * 100
+            text += f"<b>TP:</b> {signal.tp_price:.6f} (+{tp_pct:.1f}%)\n"
         if signal.sl_price:
-            text += f"<b>SL:</b> {signal.sl_price:.6f}\n"
+            if signal.direction == "LONG":
+                sl_pct = (signal.sl_price - signal.entry_price) / signal.entry_price * 100
+            else:
+                sl_pct = (signal.entry_price - signal.sl_price) / signal.entry_price * 100
+            text += f"<b>SL:</b> {signal.sl_price:.6f} ({sl_pct:.1f}%)\n"
         
         text += f"\n<b>Time (WITA):</b> {_format_wita(signal.signal_time)}"
         text += f"\n<b>Timeframe:</b> {signal.timeframe or '1h'}"
