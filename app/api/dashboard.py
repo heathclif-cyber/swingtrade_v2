@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, jsonify
 from sqlalchemy import func
 
 bp = Blueprint("dashboard", __name__)
@@ -93,3 +93,52 @@ def dashboard():
         memory          = mem,
         scheduler_ok    = sched is not None and sched.running,
     )
+
+
+@bp.get("/api/equity-curve")
+def api_equity_curve():
+    """Return daily equity curve data untuk Chart.js — SEMUA koin."""
+    from datetime import timedelta
+    from collections import defaultdict
+    import numpy as np
+    from app.extensions import db, utcnow
+    from app.models.trade import Trade
+
+    days = 60
+    cutoff = utcnow() - timedelta(days=days)
+    trades = (
+        Trade.query.filter_by(status="closed")
+        .filter(Trade.closed_at >= cutoff)
+        .order_by(Trade.closed_at)
+        .all()
+    )
+
+    # Group PnL by date
+    daily: dict[str, list[float]] = defaultdict(list)
+    for t in trades:
+        day = t.closed_at.strftime("%m-%d")
+        daily[day].append(t.pnl_net or 0)
+
+    labels = list(daily.keys())
+    daily_pnl = [sum(daily[d]) for d in labels]
+    equity = np.cumsum(daily_pnl).tolist()
+
+    # Rolling win rate (10 trading days)
+    daily_wr = []
+    for d in labels:
+        pnls = daily[d]
+        wins = sum(1 for p in pnls if p > 0)
+        daily_wr.append(wins / len(pnls) if pnls else None)
+
+    rolling_wr = []
+    window = 10
+    for i in range(len(labels)):
+        wr_vals = [v for v in daily_wr[max(0, i - window + 1):i + 1] if v is not None]
+        rolling_wr.append(round(sum(wr_vals) / len(wr_vals) * 100, 1) if wr_vals else None)
+
+    return jsonify({
+        "labels": labels,
+        "equity": equity,
+        "daily_pnl": daily_pnl,
+        "rolling_wr": rolling_wr,
+    })

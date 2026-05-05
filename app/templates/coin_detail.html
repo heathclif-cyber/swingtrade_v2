@@ -83,6 +83,14 @@
 
 </div>
 
+<!-- Equity Curve Chart -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 p-4 mb-4">
+  <h2 class="text-xs text-gray-500 mb-3">Equity Curve + Drawdown (60d)</h2>
+  <div class="h-64">
+    <canvas id="coinEquityChart"></canvas>
+  </div>
+</div>
+
 <!-- Performance Trend (snapshot history) -->
 {% if snap_history and snap_history|length > 1 %}
 <div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
@@ -230,5 +238,60 @@
   <p class="px-4 py-6 text-gray-500 text-center text-sm">Belum ada trade tertutup</p>
   {% endif %}
 </div>
+
+
+<script>
+(function() {
+  fetch('/api/equity-curve/{{ coin.symbol }}')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.labels || d.labels.length === 0) return;
+
+      var ctx = document.getElementById('coinEquityChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [
+            {
+              label: 'Equity ($)',
+              data: d.equity,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52,211,153,0.05)',
+              borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Drawdown (%)',
+              data: d.drawdown_pct,
+              borderColor: '#f87171',
+              backgroundColor: 'rgba(248,113,113,0.1)',
+              borderWidth: 1, fill: true, pointRadius: 0, tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#9ca3af', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#6b7280', font: { size: 10 }, maxTicksLimit: 10 }, grid: { color: '#1f2937' } },
+            y: {
+              type: 'linear', position: 'left',
+              ticks: { color: '#34d399', font: { size: 10 }, callback: function(v) { return '$' + v.toFixed(0); } },
+              grid: { color: '#1f2937' }
+            },
+            y1: {
+              type: 'linear', position: 'right',
+              ticks: { color: '#f87171', font: { size: 10 }, callback: function(v) { return v + '%'; } },
+              grid: { display: false }, max: 0
+            }
+          }
+        }
+      });
+    })
+    .catch(function(e) { console.error('Coin equity fetch:', e); });
+})();
+</script>
 
 {% endblock %}

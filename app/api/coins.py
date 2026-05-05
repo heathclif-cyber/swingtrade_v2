@@ -186,3 +186,45 @@ def coin_detail(symbol: str):
         recent_trades=recent_trades, perf=perf, meta=meta,
         sel=sel, snap_history=snap_history,
     )
+
+
+@bp.get("/api/equity-curve/<symbol>")
+def api_equity_curve_coin(symbol: str):
+    """Return daily equity curve data untuk Chart.js — per koin."""
+    from datetime import timedelta
+    from collections import defaultdict
+    import numpy as np
+    from app.extensions import db, utcnow
+    from app.models.trade import Trade
+    from app.models.coin import Coin
+
+    coin = Coin.query.filter_by(symbol=symbol).first_or_404()
+
+    days = 60
+    cutoff = utcnow() - timedelta(days=days)
+    trades = (
+        Trade.query.filter_by(coin_id=coin.id, status="closed")
+        .filter(Trade.closed_at >= cutoff)
+        .order_by(Trade.closed_at)
+        .all()
+    )
+
+    daily = defaultdict(list)
+    for t in trades:
+        day = t.closed_at.strftime("%m-%d")
+        daily[day].append(t.pnl_net or 0)
+
+    labels = list(daily.keys())
+    daily_pnl = [sum(daily[d]) for d in labels]
+    equity = np.cumsum(daily_pnl).tolist()
+
+    # Drawdown
+    peak = np.maximum.accumulate(equity)
+    drawdown = [round((p - e) * 100 / (p + 0.01), 1) for p, e in zip(peak, equity)]
+
+    return jsonify({
+        "labels": labels,
+        "equity": equity,
+        "daily_pnl": daily_pnl,
+        "drawdown_pct": drawdown,
+    })
