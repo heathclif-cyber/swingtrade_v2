@@ -172,7 +172,6 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
 
     db.session.commit()
     logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f} → tersimpan (id={signal.id})")
-    return "ok"
 
     # Kirim notifikasi Telegram untuk signal LONG/SHORT
     if direction in ("LONG", "SHORT"):
@@ -182,3 +181,5 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
             tg.send_signal_alert(signal, symbol)
         except Exception as e:
             logger.warning(f"[{symbol}] Gagal kirim notifikasi Telegram: {e}")
+
+    return "ok"
