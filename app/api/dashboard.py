@@ -45,15 +45,33 @@ def dashboard():
     else:
         avg_sharpe_30d = 0.0
 
-    # Model performance per koin — sumber dari PerformanceSummary (paper trading)
-    from sqlalchemy import and_
+    # Model performance per koin — ambil snapshot terbaru dari PerformanceSummary
+    from sqlalchemy import and_, func
+    latest_snap = (
+        db.session.query(
+            PerformanceSummary.coin_id,
+            PerformanceSummary.period,
+            func.max(PerformanceSummary.snapshot_at).label("max_snap"),
+        )
+        .group_by(PerformanceSummary.coin_id, PerformanceSummary.period)
+        .subquery()
+    )
     model_rows = (
         db.session.query(Coin, ModelMeta, PerformanceSummary)
         .join(ModelSelection, ModelSelection.coin_id == Coin.id)
         .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id)
         .join(
+            latest_snap,
+            and_(latest_snap.c.coin_id == Coin.id, latest_snap.c.period == "all"),
+            isouter=True,
+        )
+        .join(
             PerformanceSummary,
-            and_(PerformanceSummary.coin_id == Coin.id, PerformanceSummary.period == "all"),
+            and_(
+                PerformanceSummary.coin_id == latest_snap.c.coin_id,
+                PerformanceSummary.period == latest_snap.c.period,
+                PerformanceSummary.snapshot_at == latest_snap.c.max_snap,
+            ),
             isouter=True,
         )
         .filter(Coin.status == "active")

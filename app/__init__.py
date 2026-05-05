@@ -109,7 +109,22 @@ def _run_migrations(flask_app: Flask) -> None:
         ("signal", "h4_swing_low",  "DOUBLE PRECISION"),
         ("trade",  "h4_swing_high", "DOUBLE PRECISION"),
         ("trade",  "h4_swing_low",  "DOUBLE PRECISION"),
+        # PerformanceSummary snapshot history
+        ("performance_summary", "snapshot_at", "TIMESTAMP WITH TIME ZONE"),
     ]
+
+    # Drop unique constraint agar bisa menyimpan history snapshot
+    # (SQLite tidak support DROP CONSTRAINT, harus recreate table)
+    if not is_sqlite:
+        try:
+            db.session.execute(
+                text("ALTER TABLE performance_summary DROP CONSTRAINT IF EXISTS uq_perf_coin_period")
+            )
+            db.session.commit()
+            logger.info("[migration] Unique constraint uq_perf_coin_period dihapus")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"[migration] Gagal hapus constraint uq_perf_coin_period: {e}")
     
     # Deteksi tipe database — gunakan flask_app bukan app agar tidak
     # bentrok dengan nama modul paket 'app'

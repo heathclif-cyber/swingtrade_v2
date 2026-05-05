@@ -83,6 +83,62 @@
 
 </div>
 
+<!-- Performance Trend (snapshot history) -->
+{% if snap_history and snap_history|length > 1 %}
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Performance Trend (30d)</h2>
+  {% set trend_wr = snap_history[0].win_rate - snap_history[-1].win_rate %}
+  <div class="px-4 py-2 flex items-center gap-4 text-xs text-gray-500">
+    <span>
+      {% if trend_wr > 0.02 %}↗ <span class="text-green-400">membaik</span>
+      {% elif trend_wr < -0.02 %}↘ <span class="text-red-400">menurun</span>
+      {% else %}→ stabil{% endif %}
+    </span>
+    <span>{{ snap_history|length }} snapshot</span>
+  </div>
+  <div class="overflow-x-auto">
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Date</th>
+        <th class="px-4 py-2 text-right">Trades</th>
+        <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-right">PnL ($)</th>
+        <th class="px-4 py-2 text-right">Sharpe</th>
+        <th class="px-4 py-2 text-right">Max DD ($)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for snap in snap_history %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 text-xs text-gray-500">
+          {{ snap.snapshot_at.strftime('%m-%d %H:%M') if snap.snapshot_at else '—' }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs">{{ snap.total_trades or 0 }}</td>
+        <td class="px-4 py-2 text-right text-xs
+          {% if (snap.win_rate or 0) >= 0.65 %}text-green-400
+          {% elif (snap.win_rate or 0) >= 0.5 %}text-yellow-400
+          {% else %}text-red-400{% endif %}">
+          {{ '%.1f' | format((snap.win_rate or 0)*100) }}%
+        </td>
+        <td class="px-4 py-2 text-right text-xs font-mono
+          {% if (snap.total_pnl or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {{ '%+.2f' | format(snap.total_pnl or 0) }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs">
+          {{ '%.2f' | format(snap.sharpe_ratio or 0) }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs text-red-400">
+          {{ '%.2f' | format(snap.max_drawdown or 0) }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Recent Signals -->
 <div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
   <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Recent Signals</h2>

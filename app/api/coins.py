@@ -171,9 +171,18 @@ def coin_detail(symbol: str):
     sel = ModelSelection.query.filter_by(coin_id=coin.id).first()
     meta = ModelMeta.query.get(sel.model_meta_id) if sel else None
 
+    # Performance snapshot history — 14 baris terakhir untuk trend
+    from app.models.performance_summary import PerformanceSummary
+    snap_history = (
+        PerformanceSummary.query
+        .filter_by(coin_id=coin.id, period="30d")
+        .order_by(PerformanceSummary.snapshot_at.desc())
+        .limit(14).all()
+    )
+
     return render_template(
         "coin_detail.html",
         coin=coin, signals=signals, open_trade=open_trade,
         recent_trades=recent_trades, perf=perf, meta=meta,
-        sel=sel,
+        sel=sel, snap_history=snap_history,
     )
