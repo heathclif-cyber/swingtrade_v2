@@ -231,31 +231,41 @@ class PaperTradingEngine:
         atr: float,
         last_row,
     ) -> tuple[Optional[float], Optional[float]]:
-        """Swing-based TP/SL murni. Fallback ke fixed ATR jika swing tidak tersedia."""
+        """Swing-based TP/SL dengan ATR sebagai floor.
+
+        Ketika H4 sideways (swing level terlalu dekat), ATR mengambil alih.
+        Ketika H4 trending (swing leg lebar), swing tetap dipakai.
+        """
+        # Hitung ATR-based dulu sebagai floor
+        atr_tp = atr_sl = None
+        if atr > 0:
+            tp_mult = self._fallback.get("tp_atr_mult", 2.0)
+            sl_mult = self._fallback.get("sl_atr_mult", 1.5)
+            if direction == "LONG":
+                atr_tp = entry + tp_mult * atr
+                atr_sl = entry - sl_mult * atr
+            else:
+                atr_tp = entry - tp_mult * atr
+                atr_sl = entry + sl_mult * atr
+
+        # Coba swing-based — pakai jika lebih lebar dari ATR
         if last_row is not None and atr > 0:
             sh_val = last_row.get("h4_swing_high")
             sl_val = last_row.get("h4_swing_low")
             sh = float(sh_val) if sh_val is not None and not math.isnan(sh_val) else 0.0
             sl_lvl = float(sl_val) if sl_val is not None and not math.isnan(sl_val) else 0.0
 
-            # Langsung terapkan Swing Level tanpa validasi ATR Mult
             if direction == "LONG" and sh > entry and sl_lvl < entry:
-                return sh, sl_lvl
-
+                # TP: ambil yang lebih tinggi (jauh), SL: ambil yang lebih rendah (jauh)
+                return (max(sh, atr_tp), min(sl_lvl, atr_sl))
             if direction == "SHORT" and sl_lvl < entry and sh > entry:
-                return sl_lvl, sh
+                # TP: ambil yang lebih rendah (jauh), SL: ambil yang lebih tinggi (jauh)
+                return (min(sl_lvl, atr_tp), max(sh, atr_sl))
 
-        # Fallback ke fixed ATR (nilai fallback ini sekarang terhubung dinamis ke JSON config)
-        if atr <= 0:
+        # Fallback murni ATR
+        if atr_tp is None or atr_sl is None:
             return None, None
-            
-        tp_mult = self._fallback.get("tp_atr_mult", 3.0) 
-        sl_mult = self._fallback.get("sl_atr_mult", 1.5)
-        
-        if direction == "LONG":
-            return entry + tp_mult * atr, entry - sl_mult * atr
-        else:
-            return entry - tp_mult * atr, entry + sl_mult * atr
+        return atr_tp, atr_sl
 
     # ── Circuit Breaker ───────────────────────────────────────────────────────
 
