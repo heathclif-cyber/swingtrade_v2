@@ -113,6 +113,11 @@ def _run_migrations(flask_app: Flask) -> None:
         ("performance_summary", "snapshot_at", "TIMESTAMP WITH TIME ZONE"),
     ]
 
+    # Deteksi tipe database — gunakan flask_app bukan app agar tidak
+    # bentrok dengan nama modul paket 'app'
+    db_uri = flask_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    is_sqlite = "sqlite" in db_uri
+
     # Drop unique constraint agar bisa menyimpan history snapshot
     # (SQLite tidak support DROP CONSTRAINT, harus recreate table)
     if not is_sqlite:
@@ -125,11 +130,6 @@ def _run_migrations(flask_app: Flask) -> None:
         except Exception as e:
             db.session.rollback()
             logger.warning(f"[migration] Gagal hapus constraint uq_perf_coin_period: {e}")
-    
-    # Deteksi tipe database — gunakan flask_app bukan app agar tidak
-    # bentrok dengan nama modul paket 'app'
-    db_uri = flask_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    is_sqlite = "sqlite" in db_uri
     
     for table, column, col_type in migrations:
         try:
