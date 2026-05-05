@@ -221,31 +221,57 @@ class PaperTradingEngine:
         atr: float,
         last_row,
     ) -> tuple[Optional[float], Optional[float]]:
-        """Swing-based TP/SL murni. Fallback ke fixed ATR jika swing tidak tersedia."""
+        """Swing-based TP/SL dengan minimum distance enforcement."""
+        tp = sl = None
+
+        # Stage 1: swing-based
         if last_row is not None and atr > 0:
             sh_val = last_row.get("h4_swing_high")
             sl_val = last_row.get("h4_swing_low")
             sh = float(sh_val) if sh_val is not None and not math.isnan(sh_val) else 0.0
             sl_lvl = float(sl_val) if sl_val is not None and not math.isnan(sl_val) else 0.0
 
-            # Langsung terapkan Swing Level tanpa validasi ATR Mult
             if direction == "LONG" and sh > entry and sl_lvl < entry:
-                return sh, sl_lvl
+                tp, sl = sh, sl_lvl
+            elif direction == "SHORT" and sl_lvl < entry and sh > entry:
+                tp, sl = sl_lvl, sh
 
-            if direction == "SHORT" and sl_lvl < entry and sh > entry:
-                return sl_lvl, sh
+        # Stage 2: ATR fallback jika swing tidak tersedia
+        if tp is None or sl is None:
+            if atr <= 0:
+                return None, None
+            tp_mult = self._fallback.get("tp_atr_mult", 3.0)
+            sl_mult = self._fallback.get("sl_atr_mult", 1.5)
+            if direction == "LONG":
+                tp, sl = entry + tp_mult * atr, entry - sl_mult * atr
+            else:
+                tp, sl = entry - tp_mult * atr, entry + sl_mult * atr
 
-        # Fallback ke fixed ATR (nilai fallback ini sekarang terhubung dinamis ke JSON config)
-        if atr <= 0:
-            return None, None
-            
-        tp_mult = self._fallback.get("tp_atr_mult", 3.0) 
-        sl_mult = self._fallback.get("sl_atr_mult", 1.5)
-        
+        # Stage 3: enforce minimum distance dari entry
+        sl_cfg = self._config.get("tp_sl", {})
+        min_tp_pct = sl_cfg.get("min_tp_pct", 2.0) / 100.0
+        min_sl_pct = sl_cfg.get("min_sl_pct", 1.5) / 100.0
+
         if direction == "LONG":
-            return entry + tp_mult * atr, entry - sl_mult * atr
-        else:
-            return entry - tp_mult * atr, entry + sl_mult * atr
+            min_tp = entry * (1.0 + min_tp_pct)
+            max_sl = entry * (1.0 - min_sl_pct)
+            if tp < min_tp:
+                logger.debug(f"[PT] TP terlalu dekat ({tp:.6f} < {min_tp:.6f}) → push ke {min_tp:.6f}")
+                tp = min_tp
+            if sl > max_sl:
+                logger.debug(f"[PT] SL terlalu dekat ({sl:.6f} > {max_sl:.6f}) → push ke {max_sl:.6f}")
+                sl = max_sl
+        else:  # SHORT
+            max_tp = entry * (1.0 - min_tp_pct)
+            min_sl = entry * (1.0 + min_sl_pct)
+            if tp > max_tp:
+                logger.debug(f"[PT] TP terlalu dekat ({tp:.6f} > {max_tp:.6f}) → push ke {max_tp:.6f}")
+                tp = max_tp
+            if sl < min_sl:
+                logger.debug(f"[PT] SL terlalu dekat ({sl:.6f} < {min_sl:.6f}) → push ke {min_sl:.6f}")
+                sl = min_sl
+
+        return tp, sl
 
     # ── Circuit Breaker ───────────────────────────────────────────────────────
 
