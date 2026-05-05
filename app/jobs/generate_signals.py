@@ -156,6 +156,14 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
 
     # Paper trading — buka posisi jika signal bukan FLAT
     if direction in ("LONG", "SHORT"):
+        # Hitung TP/SL untuk sinyal (selalu, bahkan jika trade tidak dibuka)
+        last_row = features_df.iloc[-1] if features_df is not None else None
+        tp, sl = engine._calculate_tp_sl(direction, entry, atr, last_row)
+        if tp is not None:
+            signal.tp_price = tp
+        if sl is not None:
+            signal.sl_price = sl
+
         logger.debug(f"[{symbol}] Mengirim ke PaperTradingEngine arah={direction}...")
         trade = engine.process_signal(signal, features_df)
         if trade:
