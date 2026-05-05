@@ -90,10 +90,13 @@
         <th class="px-4 py-3 text-left">Dir</th>
         <th class="px-4 py-3 text-right">Entry</th>
         <th class="px-4 py-3 text-right">Exit</th>
+        <th class="px-4 py-3 text-right">TP</th>
+        <th class="px-4 py-3 text-right">SL</th>
         <th class="px-4 py-3 text-right">H4 High</th>
         <th class="px-4 py-3 text-right">H4 Low</th>
         <th class="px-4 py-3 text-right">PnL</th>
         <th class="px-4 py-3 text-right">PnL %</th>
+        <th class="px-4 py-3 text-right">Hold</th>
         <th class="px-4 py-3 text-left">Reason</th>
         <th class="px-4 py-3 text-left">Status</th>
         <th class="px-4 py-3 text-right">Aksi</th>
@@ -122,6 +125,12 @@
         <td class="px-4 py-2 text-right font-mono text-xs">
           {% if trade.exit_price %}{{ '%.4f' | format(trade.exit_price) }}{% else %}—{% endif %}
         </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
+          {% if trade.tp_price %}{{ '%.4f' | format(trade.tp_price) }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
+          {% if trade.sl_price %}{{ '%.4f' | format(trade.sl_price) }}{% else %}—{% endif %}
+        </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
           {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
         </td>
@@ -139,6 +148,9 @@
           {% if trade.status != 'open' and trade.pnl_pct is not none %}
             {{ '%+.1f' | format(trade.pnl_pct) }}%
           {% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 text-right text-xs text-gray-400">
+          {% if trade.hold_bars is not none %}{{ trade.hold_bars }}h{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-xs text-gray-500">{{ trade.exit_reason or '—' }}</td>
         <td class="px-4 py-2">
@@ -171,7 +183,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="13" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
+      <tr><td colspan="16" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
       {% endfor %}
     </tbody>
   </table>
