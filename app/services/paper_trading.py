@@ -36,6 +36,11 @@ class PaperTradingEngine:
         self._modal_per_trade       = float(os.getenv("PAPER_MODAL")    or risk.get("modal_per_trade", 100.0))
         self._leverage              = float(os.getenv("PAPER_LEVERAGE") or risk.get("leverage_recommended", 5.0))
         self._fee_per_side          = risk.get("fee_per_side", 0.0004)
+        cooldown = self._config.get("cooldown", {})
+        self._cooldown_time_exit_hrs  = cooldown.get("time_exit_hours", 2)
+        self._cooldown_sl_hit_hrs     = cooldown.get("sl_hit_hours", 4)
+        self._cooldown_tp_hit_hrs     = cooldown.get("tp_hit_hours", 2)
+        self._cooldown_default_hrs    = cooldown.get("default_hours", 4)
         self._vcb_enabled           = vcb.get("enabled", True)
         self._vcb_lookback_bars     = vcb.get("lookback_bars", 24)
         self._vcb_atr_multiplier    = vcb.get("atr_multiplier", 2.5)
@@ -70,26 +75,31 @@ class PaperTradingEngine:
         if direction not in ("LONG", "SHORT"):
             return None
 
-        # ── 3. VCB (Volatility Circuit Breaker) ───────────────────────────────
+        # ── 3. Cooldown: cek trade terakhir arah sama ─────────────────────────
+        if self._is_cooldown_active(coin_id, direction):
+            logger.info(f"[PT] Skip: cooldown aktif untuk {direction} coin_id={coin_id}")
+            return None
+
+        # ── 4. VCB (Volatility Circuit Breaker) ───────────────────────────────
         if self._vcb_enabled and features_df is not None:
             if self._circuit_breaker_active(features_df):
                 logger.info(f"[PT] Skip: VCB aktif coin_id={coin_id}")
                 return None
 
-        # ── 4. Sudah ada open position untuk coin ini ─────────────────────────
+        # ── 5. Sudah ada open position untuk coin ini ─────────────────────────
         existing = Trade.query.filter_by(coin_id=coin_id, status="open").first()
         if existing:
             logger.debug(f"[PT] Skip: sudah ada open trade coin_id={coin_id}")
             return None
 
-        # ── 5. Hitung TP/SL ───────────────────────────────────────────────────
+        # ── 6. Hitung TP/SL ───────────────────────────────────────────────────
         last_row = features_df.iloc[-1] if features_df is not None else None
         tp, sl = self._calculate_tp_sl(direction, entry_price, atr, last_row)
         if tp is None or sl is None:
             logger.warning(f"[PT] Skip: TP/SL tidak valid coin_id={coin_id}")
             return None
 
-        # ── 6. Tiered position sizing by confidence ────────────────────────────
+        # ── 7. Tiered position sizing by confidence ────────────────────────────
         confidence = signal_row.confidence or 0.0
         sizing_factor = 0.0  # Default: skip
         if confidence > (self._config.get("inference", {}).get("confidence_full_size", 0.75)):
@@ -105,7 +115,7 @@ class PaperTradingEngine:
         lev   = self._leverage
         fee   = 2 * self._fee_per_side * self._modal_per_trade  # fee tetap dari modal penuh
 
-        # ── 7. Buka trade ──────────────────────────────────────────────────────
+        # ── 8. Buka trade ──────────────────────────────────────────────────────
 
         sh_val = last_row.get("h4_swing_high") if last_row is not None else None
         sl_val = last_row.get("h4_swing_low") if last_row is not None else None
@@ -261,6 +271,38 @@ class PaperTradingEngine:
             return float(atr_now) > self._vcb_atr_multiplier * float(atr_mean)
         except Exception:
             return False
+
+    # ── Cooldown check ────────────────────────────────────────────────────────
+
+    def _is_cooldown_active(self, coin_id: int, direction: str) -> bool:
+        from datetime import timedelta
+        last = Trade.query.filter(
+            Trade.coin_id   == coin_id,
+            Trade.direction == direction,
+            Trade.status    == "closed",
+        ).order_by(Trade.closed_at.desc()).first()
+
+        if last is None:
+            return False
+
+        reason = last.exit_reason or ""
+        if reason == "tp_hit":
+            hrs = self._cooldown_tp_hit_hrs
+        elif reason == "sl_hit":
+            hrs = self._cooldown_sl_hit_hrs
+        elif reason == "time_exit":
+            hrs = self._cooldown_time_exit_hrs
+        else:
+            hrs = self._cooldown_default_hrs
+
+        cutoff = utcnow() - timedelta(hours=hrs)
+        if last.closed_at >= cutoff:
+            logger.info(
+                f"[PT] Cooldown aktif: coin_id={coin_id} direction={direction} "
+                f"exit_reason={reason} cooldown={hrs}h closed_at={last.closed_at}"
+            )
+            return True
+        return False
 
     # ── PnL calculation ───────────────────────────────────────────────────────
 
