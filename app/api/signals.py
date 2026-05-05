@@ -22,8 +22,6 @@ def signals():
         q = q.filter(Coin.symbol == symbol)
     if direction:
         q = q.filter(Signal.direction == direction)
-    else:
-        q = q.filter(Signal.direction.in_(["LONG", "SHORT"]))
 
     pagination = (
         q.order_by(Signal.signal_time.desc())
@@ -55,8 +53,6 @@ def signals_export_csv():
         q = q.filter(Coin.symbol == symbol)
     if direction:
         q = q.filter(Signal.direction == direction)
-    else:
-        q = q.filter(Signal.direction.in_(["LONG", "SHORT"]))
 
     signals = q.order_by(Signal.signal_time.desc()).limit(5000).all()
 
