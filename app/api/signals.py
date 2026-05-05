@@ -1,5 +1,6 @@
 import csv, io
 from flask import Blueprint, render_template, jsonify, request, Response
+from sqlalchemy.orm import joinedload
 
 bp = Blueprint("signals", __name__)
 
@@ -15,7 +16,8 @@ def signals():
     symbol    = request.args.get("symbol", "")
     direction = request.args.get("direction", "")
 
-    q = Signal.query.join(Coin, Signal.coin_id == Coin.id)
+    q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
+                    .options(joinedload(Signal.model_meta))
     if symbol:
         q = q.filter(Coin.symbol == symbol)
     if direction:
@@ -47,7 +49,8 @@ def signals_export_csv():
     symbol    = request.args.get("symbol", "")
     direction = request.args.get("direction", "")
 
-    q = Signal.query.join(Coin, Signal.coin_id == Coin.id)
+    q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
+                    .options(joinedload(Signal.model_meta))
     if symbol:
         q = q.filter(Coin.symbol == symbol)
     if direction:
@@ -59,13 +62,14 @@ def signals_export_csv():
 
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Time", "Coin", "Direction", "Confidence", "Entry", "TP", "SL", "ATR", "H4 High", "H4 Low"])
+    w.writerow(["Time", "Coin", "Direction", "Confidence", "Model", "Entry", "TP", "SL", "ATR", "H4 High", "H4 Low"])
     for s in signals:
         w.writerow([
             s.signal_time.strftime("%Y-%m-%d %H:%M") if s.signal_time else "",
             s.coin.symbol,
             s.direction,
             f"{s.confidence:.4f}" if s.confidence else "",
+            s.model_meta.model_type if s.model_meta else "",
             f"{s.entry_price:.4f}" if s.entry_price else "",
             f"{s.tp_price:.4f}" if s.tp_price else "",
             f"{s.sl_price:.4f}" if s.sl_price else "",
@@ -94,6 +98,7 @@ def signal_detail(signal_id: int):
         "id":            s.id,
         "direction":     s.direction,
         "confidence":    s.confidence,
+        "model_type":    s.model_meta.model_type if s.model_meta else None,
         "entry":         s.entry_price,
         "tp":            s.tp_price,
         "sl":            s.sl_price,

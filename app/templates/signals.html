@@ -42,6 +42,7 @@
         <th class="px-4 py-3 text-left">Time</th>
         <th class="px-4 py-3 text-left">Coin</th>
         <th class="px-4 py-3 text-left">Dir</th>
+        <th class="px-4 py-3 text-left">Model</th>
         <th class="px-4 py-3 text-right">Conf</th>
         <th class="px-4 py-3 text-right">Entry</th>
         <th class="px-4 py-3 text-right">TP</th>
@@ -71,6 +72,9 @@
             {{ sig.direction }}
           </span>
         </td>
+        <td class="px-4 py-2 text-xs text-gray-400 font-mono">
+          {{ sig.model_meta.model_type if sig.model_meta else '—' }}
+        </td>
         <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0)*100) }}%</td>
         <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
         <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
@@ -92,7 +96,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="10" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
+      <tr><td colspan="11" class="px-4 py-8 text-center text-gray-500">Belum ada sinyal</td></tr>
       {% endfor %}
     </tbody>
   </table>

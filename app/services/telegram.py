@@ -94,10 +94,13 @@ class TelegramService:
         direction_emoji = "🟢" if signal.direction == "LONG" else "🔴"
         direction_text = "LONG 📈" if signal.direction == "LONG" else "SHORT 📉"
         
+        model_label = signal.model_meta.model_type.upper() if signal.model_meta else "N/A"
+
         text = f"""
 {direction_emoji} <b>New Signal: {direction_text}</b>
 
 <b>Coin:</b> {coin_symbol}
+<b>Model:</b> {model_label}
 <b>Confidence:</b> {signal.confidence:.1%}
 <b>Entry:</b> {signal.entry_price:.6f}
 <b>ATR:</b> {signal.atr_at_signal:.6f}
