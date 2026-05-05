@@ -50,52 +50,6 @@
   </table>
 </div>
 
-
-<!-- Cascade Configuration -->
-<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
-  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Cascade Configuration — LGBM Scout + LSTM Confirmer</h2>
-  <div class="px-4 py-4">
-    <p class="text-xs text-gray-500 mb-3">
-      Threshold untuk pipeline cascade. LGBM scan sinyal — LSTM validasi dengan konteks sekuensial.
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div>
-        <label class="block text-xs text-gray-400 mb-1">
-          Scout Flat Threshold
-          <span class="text-gray-600">— LGBM bilang FLAT, skip LSTM</span>
-        </label>
-        <input type="number" id="cfg-scout-flat" step="0.05" min="0" max="1"
-               value="{{ cascade_cfg.get('scout_flat_threshold', 0.6) }}"
-               class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm w-20">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-400 mb-1">
-          Scout Signal Threshold
-          <span class="text-gray-600">— LGBM LONG/SHORT min confidence</span>
-        </label>
-        <input type="number" id="cfg-scout-signal" step="0.05" min="0" max="1"
-               value="{{ cascade_cfg.get('scout_signal_threshold', 0.55) }}"
-               class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm w-20">
-      </div>
-      <div>
-        <label class="block text-xs text-gray-400 mb-1">
-          Confirmer Threshold
-          <span class="text-gray-600">— LSTM min confidence untuk konfirmasi</span>
-        </label>
-        <input type="number" id="cfg-confirmer" step="0.05" min="0" max="1"
-               value="{{ cascade_cfg.get('confirmer_threshold', 0.65) }}"
-               class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm w-20">
-      </div>
-    </div>
-    <button onclick="saveCascadeConfig()"
-            class="mt-4 bg-green-700 hover:bg-green-600 text-sm rounded px-4 py-1.5 font-medium">
-      Simpan
-    </button>
-    <span id="cascade-result" class="ml-3 text-xs text-gray-400 hidden"></span>
-  </div>
-</div>
-
-
 <!-- Bulk Select -->
 <div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
   <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Bulk Select — Terapkan ke Semua Coin</h2>
@@ -244,41 +198,6 @@ function selectAll() {
     resultEl.classList.remove('hidden');
   });
 }
-
-	function saveCascadeConfig() {
-	  const resultEl = document.getElementById('cascade-result');
-	  const payload = {
-	    scout_flat_threshold:  parseFloat(document.getElementById('cfg-scout-flat').value),
-	    scout_signal_threshold: parseFloat(document.getElementById('cfg-scout-signal').value),
-	    confirmer_threshold:    parseFloat(document.getElementById('cfg-confirmer').value),
-	  };
-
-	  resultEl.textContent = 'Menyimpan...';
-	  resultEl.classList.remove('hidden', 'text-green-400', 'text-red-400');
-	  resultEl.classList.add('text-gray-400');
-
-	  fetch('/api/cascade-config', {
-	    method: 'POST',
-	    headers: {'Content-Type': 'application/json'},
-	    body: JSON.stringify(payload),
-	  })
-	  .then(r => r.json())
-	  .then(d => {
-	    if (d.status === 'ok') {
-	      resultEl.textContent = 'Tersimpan. Cache model dibersihkan.';
-	      resultEl.classList.replace('text-gray-400', 'text-green-400');
-	    } else {
-	      resultEl.textContent = 'Error: ' + (d.error || JSON.stringify(d));
-	      resultEl.classList.replace('text-gray-400', 'text-red-400');
-	    }
-	    resultEl.classList.remove('hidden');
-	  })
-	  .catch(e => {
-	    resultEl.textContent = 'Network error: ' + e;
-	    resultEl.classList.replace('text-gray-400', 'text-red-400');
-	    resultEl.classList.remove('hidden');
-	  });
-	}
 </script>
 
 {% endblock %}
