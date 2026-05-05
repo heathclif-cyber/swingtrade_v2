@@ -256,7 +256,7 @@
           plugins: {
             tooltip: {
               callbacks: {
-                label: function(ctx) { return '$' + ctx.raw.toFixed(2); }
+                label: function(ctx) { return ctx.raw != null ? '$' + ctx.raw.toFixed(2) : '$0.00'; }
               }
             }
           }
@@ -290,7 +290,7 @@
           plugins: {
             tooltip: {
               callbacks: {
-                label: function(ctx) { return ctx.raw !== null ? ctx.raw + '%' : '—'; }
+                label: function(ctx) { return ctx.raw != null ? ctx.raw + '%' : '—'; }
               }
             }
           }

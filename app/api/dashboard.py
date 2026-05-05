@@ -119,22 +119,27 @@ def api_equity_curve():
         day = t.closed_at.strftime("%m-%d")
         daily[day].append(t.pnl_net or 0)
 
-    labels = list(daily.keys())
-    daily_pnl = [sum(daily[d]) for d in labels]
+    # Fill all days in range (even days without trades = PnL 0)
+    labels = []
+    for i in range(days - 1, -1, -1):
+        d = (utcnow() - timedelta(days=i)).strftime("%m-%d")
+        labels.append(d)
+
+    daily_pnl = [sum(daily.get(d, [0])) for d in labels]
     equity = np.cumsum(daily_pnl).tolist()
 
-    # Rolling win rate (10 trading days)
+    # Daily win rate & rolling 10-day
     daily_wr = []
     for d in labels:
-        pnls = daily[d]
+        pnls = daily.get(d, [])
         wins = sum(1 for p in pnls if p > 0)
-        daily_wr.append(wins / len(pnls) if pnls else None)
+        daily_wr.append(round(wins / len(pnls) * 100, 1) if pnls else 0)
 
     rolling_wr = []
     window = 10
     for i in range(len(labels)):
-        wr_vals = [v for v in daily_wr[max(0, i - window + 1):i + 1] if v is not None]
-        rolling_wr.append(round(sum(wr_vals) / len(wr_vals) * 100, 1) if wr_vals else None)
+        wr_vals = daily_wr[max(0, i - window + 1):i + 1]
+        rolling_wr.append(round(sum(wr_vals) / len(wr_vals), 1) if wr_vals else 0)
 
     return jsonify({
         "labels": labels,

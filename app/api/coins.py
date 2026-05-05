@@ -214,8 +214,13 @@ def api_equity_curve_coin(symbol: str):
         day = t.closed_at.strftime("%m-%d")
         daily[day].append(t.pnl_net or 0)
 
-    labels = list(daily.keys())
-    daily_pnl = [sum(daily[d]) for d in labels]
+    # Fill all days in range
+    labels = []
+    for i in range(days - 1, -1, -1):
+        d = (utcnow() - timedelta(days=i)).strftime("%m-%d")
+        labels.append(d)
+
+    daily_pnl = [sum(daily.get(d, [0])) for d in labels]
     equity = np.cumsum(daily_pnl).tolist()
 
     # Drawdown
