@@ -213,6 +213,47 @@ def select_all_models():
     })
 
 
+@bp.get("/api/cascade-config")
+def cascade_config_get():
+    from app.services.model_registry import load_inference_config
+    cfg = load_inference_config()
+    return jsonify(cfg.get("cascade", {}).copy())
+
+
+@bp.post("/api/cascade-config")
+def cascade_config_post():
+    import json
+    from app.services.model_registry import load_inference_config
+    from app.services.inference import InferenceService
+
+    body = request.get_json(silent=True) or {}
+    errors = []
+    validated = {}
+    for key in ("scout_flat_threshold", "scout_signal_threshold", "confirmer_threshold"):
+        val = body.get(key)
+        if val is None:
+            errors.append(f"{key} wajib")
+        elif not (0.0 <= float(val) <= 1.0):
+            errors.append(f"{key} harus antara 0.0 — 1.0")
+        else:
+            validated[key] = round(float(val), 2)
+
+    if errors:
+        return jsonify({"status": "error", "error": "; ".join(errors)}), 422
+
+    # Tulis ke inference_config.json
+    from pathlib import Path
+    cfg = load_inference_config()
+    models_dir = Path(__file__).parent.parent.parent / "models"
+    config_path = models_dir / "inference_config.json"
+    cfg["cascade"] = validated
+    with open(config_path, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+    InferenceService.clear_cache()
+    return jsonify({"status": "ok", "cascade": validated})
+
+
 @bp.get("/api/models/available")
 def available_models():
     from app.services.model_registry import load_registry
