@@ -60,7 +60,10 @@ def signals_export_csv():
     if directions:
         q = q.filter(Signal.direction.in_(directions))
 
-    signals = q.order_by(Signal.signal_time.desc()).limit(5000).all()
+    limit_raw = request.args.get("limit", 5000, type=int)
+    limit = limit_raw if limit_raw > 0 else 100000
+
+    signals = q.order_by(Signal.signal_time.desc()).limit(limit).all()
 
     buf = io.StringIO()
     w = csv.writer(buf)

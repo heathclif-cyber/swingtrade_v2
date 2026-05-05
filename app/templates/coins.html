@@ -6,10 +6,19 @@
   <h1 class="text-xl font-bold">Coins</h1>
   <div class="flex items-center gap-2">
     <span class="text-xs text-gray-500">{{ rows | length }} coins</span>
-    <button onclick="copyCSV(this, '/coins/export.csv')"
-       class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
-      📋 Copy CSV
-    </button>
+    <div class="relative inline-block" id="csvDropdown">
+      <button onclick="toggleCSVDropdown()"
+         class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
+        📋 Copy CSV ▼
+      </button>
+      <div id="csvMenu" class="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 hidden min-w-[130px]">
+        <button onclick="copyCSV(50)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 50 baris</button>
+        <button onclick="copyCSV(100)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 100 baris</button>
+        <button onclick="copyCSV(200)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 200 baris</button>
+        <button onclick="copyCSV(400)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 400 baris</button>
+        <button onclick="copyCSV(0)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 Semua</button>
+      </div>
+    </div>
     <a href="/coins/export.csv"
        class="text-xs text-blue-400 border border-blue-800 rounded px-3 py-1 hover:bg-blue-900/30">
       ⬇ Download
@@ -87,14 +96,29 @@
 </div>
 
 <script>
-async function copyCSV(btn, url) {
+var csvBaseUrl = '/coins/export.csv';
+
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('csvDropdown');
+  if (dd && !dd.contains(e.target)) {
+    document.getElementById('csvMenu').classList.add('hidden');
+  }
+});
+
+function toggleCSVDropdown() {
+  document.getElementById('csvMenu').classList.toggle('hidden');
+}
+
+async function copyCSV(limit) {
+  var url = csvBaseUrl + (csvBaseUrl.indexOf('?') >= 0 ? '&' : '?') + 'limit=' + limit;
   try {
-    const resp = await fetch(url);
-    const text = await resp.text();
+    var resp = await fetch(url);
+    var text = await resp.text();
     await navigator.clipboard.writeText(text);
-    const orig = btn.textContent;
+    var btn = document.querySelector('#csvDropdown button');
     btn.textContent = '✅ Copied!';
-    setTimeout(() => btn.textContent = orig, 2000);
+    setTimeout(function() { btn.textContent = '📋 Copy CSV ▼'; }, 2000);
+    document.getElementById('csvMenu').classList.add('hidden');
   } catch (e) {
     alert('Gagal copy CSV: ' + e.message);
   }
