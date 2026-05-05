@@ -85,6 +85,7 @@
     <thead>
       <tr class="text-gray-500 text-xs border-b border-gray-800">
         <th class="px-4 py-3 text-left">Opened</th>
+        <th class="px-4 py-3 text-left">Closed</th>
         <th class="px-4 py-3 text-left">Coin</th>
         <th class="px-4 py-3 text-left">Dir</th>
         <th class="px-4 py-3 text-right">Entry</th>
@@ -103,6 +104,9 @@
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
         <td class="px-4 py-2 text-xs text-gray-500">
           {{ trade.opened_at | wita_fmt('%m-%d %H:%M') }}
+        </td>
+        <td class="px-4 py-2 text-xs text-gray-500">
+          {% if trade.closed_at %}{{ trade.closed_at | wita_fmt('%m-%d %H:%M') }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2">
           <a href="/coins/{{ trade.coin.symbol }}" class="text-blue-400 hover:underline font-mono text-xs">
@@ -167,7 +171,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="12" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
+      <tr><td colspan="13" class="px-4 py-8 text-center text-gray-500">Belum ada trade</td></tr>
       {% endfor %}
     </tbody>
   </table>
