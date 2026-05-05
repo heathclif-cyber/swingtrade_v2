@@ -5,8 +5,9 @@
     "start": "2020-01-01",
     "end": "2026-04-01"
   },
+  "same_dir_cooldown_hours": 2.5,
   "inference": {
-    "confidence_threshold_entry": 0.5,
+    "confidence_threshold_entry": 0.6,
     "confidence_full_size": 0.75,
     "confidence_half_size": 0.6,
     "min_hold_bars": 2,
@@ -66,12 +67,12 @@
   },
   "labeling": {
     "tp_atr_mult": 2.0,
-    "sl_atr_mult": 1.0,
+    "sl_atr_mult": 1.5,
     "max_holding_bars": 24
   },
   "fallback_tp_sl": {
     "tp_atr_mult": 2.0,
-    "sl_atr_mult": 1.0
+    "sl_atr_mult": 1.5
   },
   "risk": {
     "modal_per_trade": 100.0,
