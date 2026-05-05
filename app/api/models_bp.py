@@ -3,6 +3,37 @@ from flask import Blueprint, render_template, jsonify, request
 bp = Blueprint("models_bp", __name__)
 
 
+def _ensure_cascade_meta(coin, ModelMeta, utcnow, db):
+    """Buat ModelMeta cascade dari ensemble (preferred) atau lstm untuk coin ini."""
+    source = (
+        ModelMeta.query.filter_by(coin_id=coin.id, model_type="ensemble").first()
+        or ModelMeta.query.filter_by(coin_id=coin.id, model_type="lstm").first()
+    )
+    if not source:
+        return None
+
+    meta = ModelMeta(
+        coin_id            = coin.id,
+        model_type         = "cascade",
+        accuracy           = source.accuracy,
+        sharpe_ratio       = source.sharpe_ratio,
+        profit_factor      = source.profit_factor,
+        f1_macro           = source.f1_macro,
+        win_rate           = source.win_rate,
+        total_trades       = source.total_trades,
+        max_drawdown       = source.max_drawdown,
+        model_path         = source.model_path,
+        scaler_path        = source.scaler_path,
+        n_features         = source.n_features,
+        status             = "available",
+        trained_at         = source.trained_at,
+        evaluated_at       = source.evaluated_at,
+    )
+    db.session.add(meta)
+    db.session.flush()
+    return meta
+
+
 @bp.get("/models")
 def models():
     from app.extensions import db
@@ -52,6 +83,11 @@ def models():
 
     available_types = sorted(set(m.model_type for m in available_metas))
 
+    # Cascade tersedia jika ada ensemble atau lstm yang bisa jadi dasar
+    if ("cascade" not in available_types
+            and any(m.model_type in ("ensemble", "lstm") for m in available_metas)):
+        available_types.append("cascade")
+
     return render_template(
         "models.html",
         rows              = rows,
@@ -84,6 +120,11 @@ def select_model():
     meta = ModelMeta.query.filter_by(
         coin_id=coin.id, model_type=model_type
     ).first()
+
+    # Cascade: auto-create dari ensemble/lstm jika belum ada
+    if not meta and model_type == "cascade":
+        meta = _ensure_cascade_meta(coin, ModelMeta, utcnow, db)
+
     if not meta:
         return jsonify({"error": f"ModelMeta tidak ditemukan untuk {symbol}/{model_type}"}), 404
 
@@ -139,6 +180,11 @@ def select_all_models():
         meta = ModelMeta.query.filter_by(
             coin_id=coin.id, model_type=model_type
         ).first()
+
+        # Cascade: auto-create dari ensemble/lstm jika belum ada
+        if not meta and model_type == "cascade":
+            meta = _ensure_cascade_meta(coin, ModelMeta, utcnow, db)
+
         if not meta:
             errors.append(f"{coin.symbol}: ModelMeta {model_type} tidak ditemukan")
             continue

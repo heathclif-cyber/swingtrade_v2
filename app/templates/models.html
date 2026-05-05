@@ -119,13 +119,13 @@
           {{ sel.selected_at | wita_fmt('%Y-%m-%d %H:%M') if sel else '—' }}
         </td>
         <td class="px-4 py-3">
-          {% if available_metas %}
+          {% if available_types %}
           <div class="flex items-center gap-2">
             <select id="sel-{{ coin.symbol }}" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs">
-              {% for m in available_metas | selectattr("coin_id", "equalto", coin.id) %}
-              <option value="{{ m.model_type }}"
-                {% if sel and sel.model_meta_id == m.id %}selected{% endif %}>
-                {{ m.model_type }}
+              {% for mt in available_types %}
+              <option value="{{ mt }}"
+                {% if meta and meta.model_type == mt %}selected{% endif %}>
+                {{ mt }}
               </option>
               {% endfor %}
             </select>

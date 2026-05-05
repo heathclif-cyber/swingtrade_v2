@@ -348,5 +348,9 @@
     "lstm_layers": 2,
     "lstm_dropout": 0.3,
     "num_classes": 3
+  },
+  "cascade": {
+    "scout_confidence_threshold": 0.6,
+    "scout_signal_threshold": 0.45
   }
 }

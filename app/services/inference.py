@@ -1,10 +1,11 @@
 """
 app/services/inference.py — Load model dan predict signal untuk satu koin.
 
-Mendukung tiga mode (dari inference_config.json):
+Mendukung empat mode (dari inference_config.json):
   lstm     → LSTM forward → softmax
   lgbm     → predict_proba
   ensemble → LGBM + LSTM → MetaLearner → Calibrator
+  cascade  → LGBM (scout) → LSTM (konfirmator)
 
 Semua model di-lazy-load dan di-cache via TTLCache.
 Guard wajib: model_meta.n_features == get_n_features() dari config_loader.
@@ -146,7 +147,7 @@ class InferenceService:
 
         lstm_model = scaler = lgbm_model = meta_learner = calibrator = None
 
-        if (model_type == "lstm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
+        if (model_type in ("lstm", "cascade") or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
             lstm_model = load_lstm(
                 path        = _resolve_model_path(meta.model_path),
                 n_features  = N_FEATURES,
@@ -161,7 +162,7 @@ class InferenceService:
             if getattr(meta, "scaler_path", None):
                 scaler = joblib.load(_resolve_model_path(meta.scaler_path))
 
-        if (model_type == "lgbm" or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
+        if (model_type in ("lgbm", "cascade") or model_type.startswith("ensemble")) and getattr(meta, "model_path", None):
             lgbm_path = _resolve_model_path(meta.model_path).parent / "lgbm_baseline.pkl"
             if lgbm_path.exists():
                 lgbm_model = joblib.load(lgbm_path)
@@ -197,6 +198,9 @@ class InferenceService:
         if model_type == "lgbm":
             return self._lgbm_proba(df, bundle)
 
+        if model_type == "cascade":
+            return self._cascade_proba(df, bundle, seq_len, InferenceDataService)
+
         # ensemble
         lgbm_p = self._lgbm_proba(df, bundle)
         lstm_p = self._lstm_proba(df, bundle, seq_len, InferenceDataService)
@@ -226,6 +230,43 @@ class InferenceService:
             raise RuntimeError("LGBM tidak ter-load")
         X = df[get_feature_cols()].fillna(0).iloc[[-1]]
         return bundle.lgbm.predict_proba(X)[0]
+
+    def _cascade_proba(
+        self, df, bundle: _ModelBundle, seq_len: int, data_svc_cls
+    ) -> np.ndarray:
+        """Stage 1: LGBM scout (1 bar, cepat) → Stage 2: LSTM konfirmator (32 bar, dalam).
+
+        LGBM scan anomali (ATR spike, RSI extreme, volume breakout).
+        Kalau LGBM bilang FLAT → skip LSTM, return FLAT.
+        Kalau LGBM bilang LONG/SHORT → LSTM verifikasi dengan konteks sekuensial.
+        """
+        cascade_cfg = self._config.get("cascade", {})
+        scout_threshold = cascade_cfg.get("scout_confidence_threshold", 0.6)
+
+        # Stage 1: LGBM scout
+        if bundle.lgbm is not None:
+            lgbm_p = self._lgbm_proba(df, bundle)
+            lgbm_idx = int(np.argmax(lgbm_p))
+            lgbm_conf = float(lgbm_p[lgbm_idx])
+
+            if lgbm_idx == 1 and lgbm_conf >= scout_threshold:
+                logger.debug(
+                    f"[cascade] LGBM scout → FLAT ({lgbm_conf:.3f} >= {scout_threshold}) "
+                    f"— skip LSTM"
+                )
+                return lgbm_p
+
+            logger.debug(
+                f"[cascade] LGBM scout → {get_label_map_inv()[lgbm_idx]} ({lgbm_conf:.3f}) "
+                f"— lanjut LSTM validator"
+            )
+        else:
+            logger.warning("[cascade] LGBM tidak ter-load — fallback ke LSTM standalone")
+
+        # Stage 2: LSTM konfirmator (deep validation)
+        if bundle.lstm is None or bundle.scaler is None:
+            raise RuntimeError("Cascade butuh LSTM + scaler — tidak ter-load")
+        return self._lstm_proba(df, bundle, seq_len, data_svc_cls)
 
     # ── Validation ────────────────────────────────────────────────────────────
 
