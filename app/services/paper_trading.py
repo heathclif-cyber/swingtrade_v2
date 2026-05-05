@@ -36,7 +36,11 @@ class PaperTradingEngine:
         self._modal_per_trade       = float(os.getenv("PAPER_MODAL")    or risk.get("modal_per_trade", 100.0))
         self._leverage              = float(os.getenv("PAPER_LEVERAGE") or risk.get("leverage_recommended", 5.0))
         self._fee_per_side          = risk.get("fee_per_side", 0.0004)
-        self._same_dir_cooldown_hrs = self._config.get("same_dir_cooldown_hours", 4)
+        cooldown = self._config.get("cooldown", {})
+        self._cooldown_time_exit_hrs  = cooldown.get("time_exit_hours", 2)
+        self._cooldown_sl_hit_hrs     = cooldown.get("sl_hit_hours", 4)
+        self._cooldown_tp_hit_hrs     = cooldown.get("tp_hit_hours", 2)
+        self._cooldown_default_hrs    = cooldown.get("default_hours", 4)
         self._vcb_enabled           = vcb.get("enabled", True)
         self._vcb_lookback_bars     = vcb.get("lookback_bars", 24)
         self._vcb_atr_multiplier    = vcb.get("atr_multiplier", 2.5)
@@ -272,14 +276,33 @@ class PaperTradingEngine:
 
     def _is_cooldown_active(self, coin_id: int, direction: str) -> bool:
         from datetime import timedelta
-        cutoff = utcnow() - timedelta(hours=self._same_dir_cooldown_hrs)
-        recent = Trade.query.filter(
+        last = Trade.query.filter(
             Trade.coin_id   == coin_id,
             Trade.direction == direction,
             Trade.status    == "closed",
-            Trade.closed_at >= cutoff,
-        ).first()
-        return recent is not None
+        ).order_by(Trade.closed_at.desc()).first()
+
+        if last is None:
+            return False
+
+        reason = last.exit_reason or ""
+        if reason == "tp_hit":
+            hrs = self._cooldown_tp_hit_hrs
+        elif reason == "sl_hit":
+            hrs = self._cooldown_sl_hit_hrs
+        elif reason == "time_exit":
+            hrs = self._cooldown_time_exit_hrs
+        else:
+            hrs = self._cooldown_default_hrs
+
+        cutoff = utcnow() - timedelta(hours=hrs)
+        if last.closed_at >= cutoff:
+            logger.info(
+                f"[PT] Cooldown aktif: coin_id={coin_id} direction={direction} "
+                f"exit_reason={reason} cooldown={hrs}h closed_at={last.closed_at}"
+            )
+            return True
+        return False
 
     # ── PnL calculation ───────────────────────────────────────────────────────
 
