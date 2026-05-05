@@ -288,15 +288,16 @@ class PaperTradingEngine:
         qty = trade.quantity or self._modal_per_trade
         lev = trade.leverage or self._leverage
 
-        pnl_pct   = direction_sign * (exit_price - trade.entry_price) / trade.entry_price
-        pnl_gross = pnl_pct * qty * lev
-        pnl_net   = pnl_gross - (trade.fee_total or 0)
+        price_change = direction_sign * (exit_price - trade.entry_price) / trade.entry_price
+        pnl_gross    = price_change * qty * lev
+        pnl_net      = pnl_gross - (trade.fee_total or 0)
+        pnl_pct      = (pnl_net / qty) * 100 if qty > 0 else 0.0
 
         trade.exit_price  = exit_price
         trade.exit_reason = reason
         trade.pnl_gross   = round(pnl_gross, 4)
         trade.pnl_net     = round(pnl_net, 4)
-        trade.pnl_pct     = round(pnl_pct * 100, 2)
+        trade.pnl_pct     = round(pnl_pct, 2)
         trade.status      = "closed"
         trade.closed_at   = utcnow()
 
