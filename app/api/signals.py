@@ -12,16 +12,19 @@ def signals():
     from app.models.signal import Signal
     from app.models.coin import Coin
 
-    page      = request.args.get("page", 1, type=int)
-    symbol    = request.args.get("symbol", "")
-    direction = request.args.get("direction", "")
+    page       = request.args.get("page", 1, type=int)
+    symbol_raw = request.args.get("symbol", "")
+    dir_raw    = request.args.get("direction", "")
+
+    symbols   = [s.strip() for s in symbol_raw.split(",") if s.strip()]
+    directions = [d.strip().upper() for d in dir_raw.split(",") if d.strip()]
 
     q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
                     .options(joinedload(Signal.model_meta))
-    if symbol:
-        q = q.filter(Coin.symbol == symbol)
-    if direction:
-        q = q.filter(Signal.direction == direction)
+    if symbols:
+        q = q.filter(Coin.symbol.in_(symbols))
+    if directions:
+        q = q.filter(Signal.direction.in_(directions))
 
     pagination = (
         q.order_by(Signal.signal_time.desc())
@@ -34,8 +37,8 @@ def signals():
         "signals.html",
         pagination  = pagination,
         coins       = coins,
-        symbol      = symbol,
-        direction   = direction,
+        symbols     = symbols,
+        directions  = directions,
     )
 
 
@@ -44,15 +47,18 @@ def signals_export_csv():
     from app.models.signal import Signal
     from app.models.coin import Coin
 
-    symbol    = request.args.get("symbol", "")
-    direction = request.args.get("direction", "")
+    symbol_raw = request.args.get("symbol", "")
+    dir_raw    = request.args.get("direction", "")
+
+    symbols   = [s.strip() for s in symbol_raw.split(",") if s.strip()]
+    directions = [d.strip().upper() for d in dir_raw.split(",") if d.strip()]
 
     q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
                     .options(joinedload(Signal.model_meta))
-    if symbol:
-        q = q.filter(Coin.symbol == symbol)
-    if direction:
-        q = q.filter(Signal.direction == direction)
+    if symbols:
+        q = q.filter(Coin.symbol.in_(symbols))
+    if directions:
+        q = q.filter(Signal.direction.in_(directions))
 
     signals = q.order_by(Signal.signal_time.desc()).limit(5000).all()
 
