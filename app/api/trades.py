@@ -73,7 +73,7 @@ def trades():
 
 @bp.get("/paper/trades/export.csv")
 def trades_export_csv():
-    from app.extensions import db
+    from app.extensions import db, price_fmt
     from app.models.trade import Trade
     from app.models.coin import Coin
 
@@ -105,12 +105,12 @@ def trades_export_csv():
             t.closed_at.strftime("%Y-%m-%d %H:%M") if t.closed_at else "",
             t.coin.symbol,
             t.direction,
-            f"{t.entry_price:.4f}",
-            f"{t.exit_price:.4f}" if t.exit_price else "",
-            f"{t.tp_price:.4f}" if t.tp_price else "",
-            f"{t.sl_price:.4f}" if t.sl_price else "",
-            f"{t.h4_swing_high:.4f}" if t.h4_swing_high else "",
-            f"{t.h4_swing_low:.4f}" if t.h4_swing_low else "",
+            price_fmt(t.entry_price),
+            price_fmt(t.exit_price) if t.exit_price else "",
+            price_fmt(t.tp_price) if t.tp_price else "",
+            price_fmt(t.sl_price) if t.sl_price else "",
+            price_fmt(t.h4_swing_high) if t.h4_swing_high else "",
+            price_fmt(t.h4_swing_low) if t.h4_swing_low else "",
             f"{t.quantity:.4f}" if t.quantity else "",
             t.leverage if t.leverage else "",
             f"{t.pnl_net:+.2f}" if t.pnl_net is not None else "",

@@ -32,3 +32,18 @@ def wita_format(dt: datetime | None, fmt: str = "%m-%d %H:%M") -> str:
         return "—"
     wita_dt = to_wita(dt)
     return wita_dt.strftime(fmt)
+
+
+def price_fmt(value: float | None) -> str:
+    """Format price with dynamic decimal places based on magnitude."""
+    if value is None:
+        return "—"
+    abs_val = abs(value)
+    if abs_val >= 1000:
+        return f"{value:.2f}"
+    elif abs_val >= 1:
+        return f"{value:.4f}"
+    elif abs_val >= 0.01:
+        return f"{value:.6f}"
+    else:
+        return f"{value:.8f}"

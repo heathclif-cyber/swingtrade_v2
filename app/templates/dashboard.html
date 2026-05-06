@@ -88,18 +88,18 @@
               </span>
             </td>
             <td class="px-4 py-2 text-right">{{ '%.0f' | format((sig.confidence or 0) * 100) }}%</td>
-            <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(sig.entry_price or 0) }}</td>
+            <td class="px-4 py-2 text-right font-mono">{{ (sig.entry_price or 0) | price_fmt }}</td>
             <td class="px-4 py-2 text-right font-mono text-green-400">
-              {% if sig.tp_price %}{{ '%.4f' | format(sig.tp_price) }}{% else %}—{% endif %}
+              {% if sig.tp_price %}{{ sig.tp_price | price_fmt }}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-2 text-right font-mono text-red-400">
-              {% if sig.sl_price %}{{ '%.4f' | format(sig.sl_price) }}{% else %}—{% endif %}
+              {% if sig.sl_price %}{{ sig.sl_price | price_fmt }}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
-              {% if sig.h4_swing_high %}{{ '%.4f' | format(sig.h4_swing_high) }}{% else %}—{% endif %}
+              {% if sig.h4_swing_high %}{{ sig.h4_swing_high | price_fmt }}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
-              {% if sig.h4_swing_low %}{{ '%.4f' | format(sig.h4_swing_low) }}{% else %}—{% endif %}
+              {% if sig.h4_swing_low %}{{ sig.h4_swing_low | price_fmt }}{% else %}—{% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -145,14 +145,14 @@
                 {{ trade.direction }}
               </span>
             </td>
-            <td class="px-4 py-2 text-right font-mono">{{ '%.4f' | format(trade.entry_price) }}</td>
-            <td class="px-4 py-2 text-right font-mono text-green-400">{{ '%.4f' | format(trade.tp_price or 0) }}</td>
-            <td class="px-4 py-2 text-right font-mono text-red-400">{{ '%.4f' | format(trade.sl_price or 0) }}</td>
+            <td class="px-4 py-2 text-right font-mono">{{ trade.entry_price | price_fmt }}</td>
+            <td class="px-4 py-2 text-right font-mono text-green-400">{{ (trade.tp_price or 0) | price_fmt }}</td>
+            <td class="px-4 py-2 text-right font-mono text-red-400">{{ (trade.sl_price or 0) | price_fmt }}</td>
             <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
-              {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
+              {% if trade.h4_swing_high %}{{ trade.h4_swing_high | price_fmt }}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
-              {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
+              {% if trade.h4_swing_low %}{{ trade.h4_swing_low | price_fmt }}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-2 text-right text-gray-400">{{ trade.hold_bars or 0 }}</td>
             <td class="px-4 py-2 text-right">

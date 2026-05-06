@@ -70,6 +70,7 @@ def signals_export_csv():
     signals = q.order_by(Signal.signal_time.desc()).limit(limit).all()
 
     from app.services.model_registry import load_inference_config
+    from app.extensions import price_fmt
     cfg = load_inference_config()
     lev = float(cfg.get("risk", {}).get("leverage_recommended", 5.0))
 
@@ -86,14 +87,14 @@ def signals_export_csv():
             s.direction,
             f"{s.confidence:.4f}" if s.confidence else "",
             s.model_meta.model_type if s.model_meta else "",
-            f"{e:.4f}" if e else "",
-            f"{s.tp_price:.4f}" if s.tp_price else "",
+            price_fmt(e) if e else "",
+            price_fmt(s.tp_price) if s.tp_price else "",
             tp_pct,
-            f"{s.sl_price:.4f}" if s.sl_price else "",
+            price_fmt(s.sl_price) if s.sl_price else "",
             sl_pct,
-            f"{s.atr_at_signal:.4f}" if s.atr_at_signal else "",
-            f"{s.h4_swing_high:.4f}" if s.h4_swing_high else "",
-            f"{s.h4_swing_low:.4f}" if s.h4_swing_low else "",
+            price_fmt(s.atr_at_signal) if s.atr_at_signal else "",
+            price_fmt(s.h4_swing_high) if s.h4_swing_high else "",
+            price_fmt(s.h4_swing_low) if s.h4_swing_low else "",
         ])
     return Response(buf.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=signals.csv"})

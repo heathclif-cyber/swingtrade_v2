@@ -121,21 +121,21 @@
             {{ trade.direction }}
           </span>
         </td>
-        <td class="px-4 py-2 text-right font-mono text-xs">{{ '%.4f' | format(trade.entry_price) }}</td>
+        <td class="px-4 py-2 text-right font-mono text-xs">{{ trade.entry_price | price_fmt }}</td>
         <td class="px-4 py-2 text-right font-mono text-xs">
-          {% if trade.exit_price %}{{ '%.4f' | format(trade.exit_price) }}{% else %}—{% endif %}
+          {% if trade.exit_price %}{{ trade.exit_price | price_fmt }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-green-400">
-          {% if trade.tp_price %}{{ '%.4f' | format(trade.tp_price) }}{% else %}—{% endif %}
+          {% if trade.tp_price %}{{ trade.tp_price | price_fmt }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-red-400">
-          {% if trade.sl_price %}{{ '%.4f' | format(trade.sl_price) }}{% else %}—{% endif %}
+          {% if trade.sl_price %}{{ trade.sl_price | price_fmt }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-blue-300">
-          {% if trade.h4_swing_high %}{{ '%.4f' | format(trade.h4_swing_high) }}{% else %}—{% endif %}
+          {% if trade.h4_swing_high %}{{ trade.h4_swing_high | price_fmt }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs text-purple-300">
-          {% if trade.h4_swing_low %}{{ '%.4f' | format(trade.h4_swing_low) }}{% else %}—{% endif %}
+          {% if trade.h4_swing_low %}{{ trade.h4_swing_low | price_fmt }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-2 text-right font-mono text-xs font-medium
           {% if trade.status == 'open' %}text-gray-400
