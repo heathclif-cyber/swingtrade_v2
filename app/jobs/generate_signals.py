@@ -12,6 +12,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
+import numpy as np
 from flask import Flask
 
 logger = logging.getLogger(__name__)
@@ -127,6 +128,19 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     swing_high = result.get("h4_swing_high") or 0.0
     swing_low  = result.get("h4_swing_low")  or 0.0
 
+    # Full 85+ fitur dari baris terakhir untuk RL training
+    feature_dict = {}
+    last_row = features_df.iloc[-1]
+    for col in features_df.columns:
+        val = last_row[col]
+        if isinstance(val, (np.integer,)):
+            val = int(val)
+        elif isinstance(val, (np.floating,)):
+            val = float(val) if not np.isnan(val) else None
+        elif isinstance(val, np.ndarray):
+            val = val.tolist()
+        feature_dict[col] = val
+
     signal = Signal(
         coin_id          = coin.id,
         model_meta_id    = meta.id,
@@ -139,13 +153,7 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
         tp_price         = None,
         sl_price         = None,
         timeframe        = "1h",
-        feature_snapshot = json.dumps({
-            "close":          entry,
-            "atr":            atr,
-            "h4_swing_high":  swing_high,
-            "h4_swing_low":   swing_low,
-            "confidence":     confidence,
-        }),
+        feature_snapshot = json.dumps(feature_dict),
         signal_time = utcnow(),
     )
     db.session.add(signal)
@@ -180,24 +188,6 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
 
     db.session.commit()
     logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f} → tersimpan (id={signal.id})")
-
-    # ── Simpan full 85 features ke parquet untuk RL training ──────
-    try:
-        from app.services.rl_data import save_signal_features
-        save_signal_features(
-            symbol=symbol,
-            signal_id=signal.id,
-            direction=direction,
-            confidence=confidence,
-            entry_price=entry,
-            atr_at_signal=atr,
-            tp_price=signal.tp_price,
-            sl_price=signal.sl_price,
-            signal_time=signal.signal_time,
-            features_df=features_df,
-        )
-    except Exception:
-        logger.warning(f"[{symbol}] RL parquet save skipped (non-fatal)")
 
     # Kirim notifikasi Telegram untuk signal LONG/SHORT
     if direction in ("LONG", "SHORT"):

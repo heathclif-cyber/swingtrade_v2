@@ -89,23 +89,17 @@ reward = regime_multiplier * (pnl_net / modal)
 
 ### Tahap 1: Full Feature Snapshot ✅ DONE
 
-**File:** `app/services/rl_data.py` (baru) + `app/jobs/generate_signals.py` (modifikasi)
+**File:** `app/jobs/generate_signals.py` (modifikasi)
 
-**Implementasi aktual:** Full 85 fitur disimpan ke **Parquet** (bukan database, hemat Neon free tier):
+**Implementasi aktual:** Full 85+ fitur dari `features_df.iloc[-1]` disimpan langsung di **DB** (`Signal.feature_snapshot` sebagai JSON):
 
-```
-data/rl_training/YYYY-MM/signals.parquet
-```
+- Setiap sinyal menyimpan semua kolom dari `features_df` (85 feature columns + h4_swing_high, h4_swing_low) + metadata asli (close, atr, confidence)
+- Konversi numpy types → native Python (int/float/list) untuk JSON serialization
+- Estimasi storage: ~3 KB/sinyal → ~40-50 MB/bulan → aman untuk Neon free tier (0.5 GB) dalam jangka menengah
+- UI monitoring di `/rl-data` — ringkasan per bulan + preview 10 sinyal terakhir (query dari DB)
+- `app/api/rl_data.py` menyediakan API scan dari Signal table
 
-Setiap sinyal menyimpan 93 kolom: 85 fitur dari `features_df.iloc[-1]` + 8 metadata (`signal_id`, `symbol`, `direction`, `confidence`, `entry_price`, `atr_at_signal`, `tp_price`, `sl_price`, `signal_time`).
-
-- `generate_signals.py` memanggil `save_signal_features()` setelah `db.session.commit()`
-- Read-concat-write-back pattern untuk append ke file bulanan
-- Gagal simpan = non-fatal (tidak mempengaruhi pipeline sinyal)
-- DB `feature_snapshot` tetap 5 field seperti sebelumnya (backward compatible)
-- UI monitoring di `/rl-data` — ringkasan per bulan + preview sinyal terakhir
-
-**Effort:** 2 file, ~70 baris. **Status: SELESAI.**
+**Effort:** 1 file, ~15 baris perubahan. **Status: SELESAI.**
 **Impact:** Fondasi semua data RL. Tanpa ini tidak bisa replay state.
 
 ### Tahap 2: TradeBar Table — Bar-by-Bar Trajectory
