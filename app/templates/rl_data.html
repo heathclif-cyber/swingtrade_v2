@@ -2,7 +2,13 @@
 {% block title %}RL Data{% endblock %}
 {% block content %}
 
-<h1 class="text-xl font-bold mb-6">RL Training Data</h1>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold">RL Training Data</h1>
+  <a href="/api/backup/download"
+     class="text-xs text-yellow-400 border border-yellow-800 rounded px-3 py-1 hover:bg-yellow-900/30">
+    ⬇ Download Backup
+  </a>
+</div>
 
 <!-- Summary Cards -->
 <div class="grid grid-cols-3 gap-4 mb-6" id="summaryCards">
