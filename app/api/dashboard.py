@@ -141,9 +141,15 @@ def api_equity_curve():
         wr_vals = daily_wr[max(0, i - window + 1):i + 1]
         rolling_wr.append(round(sum(wr_vals) / len(wr_vals), 1) if wr_vals else 0)
 
+    from collections import Counter
+    exit_counts = dict(Counter(
+        t.exit_reason for t in trades if t.exit_reason
+    ))
+
     return jsonify({
-        "labels": labels,
-        "equity": equity,
-        "daily_pnl": daily_pnl,
-        "rolling_wr": rolling_wr,
+        "labels":      labels,
+        "equity":      equity,
+        "daily_pnl":   daily_pnl,
+        "rolling_wr":  rolling_wr,
+        "exit_counts": exit_counts,
     })
