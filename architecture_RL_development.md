@@ -87,39 +87,25 @@ reward = regime_multiplier * (pnl_net / modal)
 
 ## Data Pipeline — 5 Tahap
 
-### Tahap 1: Full Feature Snapshot
+### Tahap 1: Full Feature Snapshot ✅ DONE
 
-**File:** `app/jobs/generate_signals.py` (modifikasi)
+**File:** `app/services/rl_data.py` (baru) + `app/jobs/generate_signals.py` (modifikasi)
 
-Sekarang:
-```python
-feature_snapshot = json.dumps({
-    "close": entry,
-    "atr": atr,
-    "h4_swing_high": swing_high,
-    "h4_swing_low": swing_low,
-    "confidence": confidence,
-})
+**Implementasi aktual:** Full 85 fitur disimpan ke **Parquet** (bukan database, hemat Neon free tier):
+
+```
+data/rl_training/YYYY-MM/signals.parquet
 ```
 
-Menjadi:
-```python
-# Semua 85 kolom dari features_df.iloc[-1]
-feature_dict = {}
-for col in features_df.columns:
-    val = last_row[col]
-    if isinstance(val, (np.integer,)):
-        val = int(val)
-    elif isinstance(val, (np.floating,)):
-        val = float(val) if not np.isnan(val) else None
-    elif isinstance(val, np.ndarray):
-        val = val.tolist()
-    feature_dict[col] = val
+Setiap sinyal menyimpan 93 kolom: 85 fitur dari `features_df.iloc[-1]` + 8 metadata (`signal_id`, `symbol`, `direction`, `confidence`, `entry_price`, `atr_at_signal`, `tp_price`, `sl_price`, `signal_time`).
 
-feature_snapshot = json.dumps(feature_dict)
-```
+- `generate_signals.py` memanggil `save_signal_features()` setelah `db.session.commit()`
+- Read-concat-write-back pattern untuk append ke file bulanan
+- Gagal simpan = non-fatal (tidak mempengaruhi pipeline sinyal)
+- DB `feature_snapshot` tetap 5 field seperti sebelumnya (backward compatible)
+- UI monitoring di `/rl-data` — ringkasan per bulan + preview sinyal terakhir
 
-**Effort:** 1 file, ~15 baris.
+**Effort:** 2 file, ~70 baris. **Status: SELESAI.**
 **Impact:** Fondasi semua data RL. Tanpa ini tidak bisa replay state.
 
 ### Tahap 2: TradeBar Table — Bar-by-Bar Trajectory
@@ -320,7 +306,7 @@ Rekomendasi: **Mulai dengan DQN** untuk offline training. Pindah ke **PPO** untu
 
 | # | Tahap | Effort | Impact | Dependensi |
 |---|-------|--------|--------|------------|
-| 1 | Full 85 fitur snapshot | 1 file, rendah | **Fondasi** | Tidak ada |
+| 1 | Full 85 fitur snapshot ✅ | 2 file, rendah | **Fondasi** | Tidak ada |
 | 2 | TradeBar table | 2 file, sedang | Trajectory data | Tahap 1 |
 | 3 | Regime label | 1 file, rendah | State augmentation | Tahap 1 |
 | 4 | Outcome decomposition | 1 file, rendah | Post-hoc analysis | Tahap 2 |
@@ -330,7 +316,7 @@ Rekomendasi: **Mulai dengan DQN** untuk offline training. Pindah ke **PPO** untu
 
 | Milestone | Waktu (estimasi) | Deliverable |
 |-----------|-----------------|-------------|
-| M1: Data foundation | 1-2 hari | Full feature snapshot + regime label |
+| M1: Data foundation | ~~1-2 hari~~ SELESAI | Full feature snapshot ✅ + regime label |
 | M2: Trajectory | 2-3 hari | TradeBar table + outcome decomposition |
 | M3: Counterfactual | 3-5 hari | RejectedSignal + outcome backfill job |
 | M4: Replay buffer | 3-5 hari | Dataset builder dari 3 tabel |

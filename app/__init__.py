@@ -78,6 +78,7 @@ def _register_blueprints(app: Flask) -> None:
     from app.api.trades import bp as trades_bp
     from app.api.models_bp import bp as models_bp
     from app.api.health import bp as health_bp
+    from app.api.rl_data import bp as rl_data_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(coins_bp)
@@ -85,6 +86,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(trades_bp)
     app.register_blueprint(models_bp)
     app.register_blueprint(health_bp)
+    app.register_blueprint(rl_data_bp)
 
     # Register custom Jinja filters
     from app.extensions import wita_format, price_fmt

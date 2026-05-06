@@ -181,6 +181,24 @@ def _process_coin(coin, data_svc, engine, db, utcnow,
     db.session.commit()
     logger.info(f"[{symbol}] Signal={direction} conf={confidence:.2f} entry={entry:.4f} → tersimpan (id={signal.id})")
 
+    # ── Simpan full 85 features ke parquet untuk RL training ──────
+    try:
+        from app.services.rl_data import save_signal_features
+        save_signal_features(
+            symbol=symbol,
+            signal_id=signal.id,
+            direction=direction,
+            confidence=confidence,
+            entry_price=entry,
+            atr_at_signal=atr,
+            tp_price=signal.tp_price,
+            sl_price=signal.sl_price,
+            signal_time=signal.signal_time,
+            features_df=features_df,
+        )
+    except Exception:
+        logger.warning(f"[{symbol}] RL parquet save skipped (non-fatal)")
+
     # Kirim notifikasi Telegram untuk signal LONG/SHORT
     if direction in ("LONG", "SHORT"):
         try:

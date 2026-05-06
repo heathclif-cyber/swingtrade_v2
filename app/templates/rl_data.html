@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}RL Data{% endblock %}
+{% block content %}
+
+<h1 class="text-xl font-bold mb-6">RL Training Data</h1>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-3 gap-4 mb-6" id="summaryCards">
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Total Sinyal</p>
+    <p class="text-2xl font-bold text-white" id="totalSignals">—</p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Total Bulan</p>
+    <p class="text-2xl font-bold text-white" id="totalMonths">—</p>
+  </div>
+  <div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <p class="text-gray-500 text-xs mb-1">Total Size</p>
+    <p class="text-2xl font-bold text-white" id="totalSize">—</p>
+  </div>
+</div>
+
+<!-- Monthly Summary -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Ringkasan per Bulan</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="text-gray-500 text-xs border-b border-gray-800">
+          <th class="px-4 py-2 text-left">Bulan</th>
+          <th class="px-4 py-2 text-right">Sinyal</th>
+          <th class="px-4 py-2 text-right">Size</th>
+          <th class="px-4 py-2 text-left">Dari</th>
+          <th class="px-4 py-2 text-left">Sampai</th>
+        </tr>
+      </thead>
+      <tbody id="monthlyBody">
+        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Preview: 10 Sinyal Terakhir -->
+<div class="bg-gray-900 rounded-lg border border-gray-800">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">10 Sinyal Terakhir</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="text-gray-500 text-xs border-b border-gray-800">
+          <th class="px-4 py-2 text-left">Signal ID</th>
+          <th class="px-4 py-2 text-left">Time</th>
+          <th class="px-4 py-2 text-left">Coin</th>
+          <th class="px-4 py-2 text-left">Dir</th>
+          <th class="px-4 py-2 text-right">Conf</th>
+          <th class="px-4 py-2 text-right">Entry</th>
+        </tr>
+      </thead>
+      <tbody id="previewBody">
+        <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="text-xs text-gray-600 mt-4">
+  Sumber: <code class="text-gray-500">data/rl_training/YYYY-MM/signals.parquet</code>
+  &mdash; 85 fitur + 8 metadata per sinyal
+</p>
+
+<script>
+(function() {
+  fetch('/api/rl-data/scan')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      // Summary cards
+      document.getElementById('totalSignals').textContent = d.total_signals || '0';
+      document.getElementById('totalMonths').textContent = d.total_months || '0';
+      document.getElementById('totalSize').textContent = (d.total_size_mb || 0).toFixed(2) + ' MB';
+
+      // Monthly table
+      var mBody = document.getElementById('monthlyBody');
+      if (d.months && d.months.length > 0) {
+        mBody.innerHTML = '';
+        d.months.forEach(function(m) {
+          mBody.innerHTML +=
+            '<tr class="border-b border-gray-800/50">'
+            + '<td class="px-4 py-2 text-xs font-mono">' + m.month + '</td>'
+            + '<td class="px-4 py-2 text-xs text-right">' + m.signals + '</td>'
+            + '<td class="px-4 py-2 text-xs text-right text-gray-400">' + m.size_mb + ' MB</td>'
+            + '<td class="px-4 py-2 text-xs text-gray-500">' + (m.first || '—') + '</td>'
+            + '<td class="px-4 py-2 text-xs text-gray-500">' + (m.last || '—') + '</td>'
+            + '</tr>';
+        });
+      } else {
+        mBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">Belum ada data — tunggu job generate_signals</td></tr>';
+      }
+
+      // Preview table
+      var pBody = document.getElementById('previewBody');
+      if (d.preview && d.preview.length > 0) {
+        pBody.innerHTML = '';
+        d.preview.forEach(function(s) {
+          var dirClass = s.direction === 'LONG' ? 'text-green-400' : s.direction === 'SHORT' ? 'text-red-400' : 'text-gray-400';
+          var dirBg = s.direction === 'LONG' ? 'bg-green-900' : s.direction === 'SHORT' ? 'bg-red-900' : 'bg-gray-700';
+          pBody.innerHTML +=
+            '<tr class="border-b border-gray-800/50 hover:bg-gray-800/30">'
+            + '<td class="px-4 py-2 text-xs text-gray-500 font-mono">#' + s.signal_id + '</td>'
+            + '<td class="px-4 py-2 text-xs text-gray-500">' + (s.signal_time || '—').replace('T',' ') + '</td>'
+            + '<td class="px-4 py-2 text-xs font-mono"><a href="/coins/' + s.symbol + '" class="text-blue-400 hover:underline">' + s.symbol + '</a></td>'
+            + '<td class="px-4 py-2"><span class="px-1.5 py-0.5 rounded text-xs font-medium ' + dirBg + ' ' + dirClass + '">' + s.direction + '</span></td>'
+            + '<td class="px-4 py-2 text-xs text-right">' + (s.confidence != null ? s.confidence + '%' : '—') + '</td>'
+            + '<td class="px-4 py-2 text-xs text-right font-mono">' + (s.entry_price != null ? s.entry_price : '—') + '</td>'
+            + '</tr>';
+        });
+      } else {
+        pBody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">Belum ada data</td></tr>';
+      }
+    })
+    .catch(function(e) {
+      console.error('RL data scan error:', e);
+      document.getElementById('monthlyBody').innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-red-400">Gagal memuat data</td></tr>';
+      document.getElementById('previewBody').innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-red-400">Gagal memuat data</td></tr>';
+    });
+})();
+</script>
+
+{% endblock %}
