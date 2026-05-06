@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, jsonify
 from sqlalchemy import func
 
 bp = Blueprint("dashboard", __name__)
@@ -45,15 +45,33 @@ def dashboard():
     else:
         avg_sharpe_30d = 0.0
 
-    # Model performance per koin — sumber dari PerformanceSummary (paper trading)
-    from sqlalchemy import and_
+    # Model performance per koin — ambil snapshot terbaru dari PerformanceSummary
+    from sqlalchemy import and_, func
+    latest_snap = (
+        db.session.query(
+            PerformanceSummary.coin_id,
+            PerformanceSummary.period,
+            func.max(PerformanceSummary.snapshot_at).label("max_snap"),
+        )
+        .group_by(PerformanceSummary.coin_id, PerformanceSummary.period)
+        .subquery()
+    )
     model_rows = (
         db.session.query(Coin, ModelMeta, PerformanceSummary)
         .join(ModelSelection, ModelSelection.coin_id == Coin.id)
         .join(ModelMeta, ModelMeta.id == ModelSelection.model_meta_id)
         .join(
+            latest_snap,
+            and_(latest_snap.c.coin_id == Coin.id, latest_snap.c.period == "all"),
+            isouter=True,
+        )
+        .join(
             PerformanceSummary,
-            and_(PerformanceSummary.coin_id == Coin.id, PerformanceSummary.period == "all"),
+            and_(
+                PerformanceSummary.coin_id == latest_snap.c.coin_id,
+                PerformanceSummary.period == latest_snap.c.period,
+                PerformanceSummary.snapshot_at == latest_snap.c.max_snap,
+            ),
             isouter=True,
         )
         .filter(Coin.status == "active")
@@ -75,3 +93,57 @@ def dashboard():
         memory          = mem,
         scheduler_ok    = sched is not None and sched.running,
     )
+
+
+@bp.get("/api/equity-curve")
+def api_equity_curve():
+    """Return daily equity curve data untuk Chart.js — SEMUA koin."""
+    from datetime import timedelta
+    from collections import defaultdict
+    import numpy as np
+    from app.extensions import db, utcnow
+    from app.models.trade import Trade
+
+    days = 60
+    cutoff = utcnow() - timedelta(days=days)
+    trades = (
+        Trade.query.filter_by(status="closed")
+        .filter(Trade.closed_at >= cutoff)
+        .order_by(Trade.closed_at)
+        .all()
+    )
+
+    # Group PnL by date
+    daily: dict[str, list[float]] = defaultdict(list)
+    for t in trades:
+        day = t.closed_at.strftime("%m-%d")
+        daily[day].append(t.pnl_net or 0)
+
+    # Fill all days in range (even days without trades = PnL 0)
+    labels = []
+    for i in range(days - 1, -1, -1):
+        d = (utcnow() - timedelta(days=i)).strftime("%m-%d")
+        labels.append(d)
+
+    daily_pnl = [sum(daily.get(d, [0])) for d in labels]
+    equity = np.cumsum(daily_pnl).tolist()
+
+    # Daily win rate & rolling 10-day
+    daily_wr = []
+    for d in labels:
+        pnls = daily.get(d, [])
+        wins = sum(1 for p in pnls if p > 0)
+        daily_wr.append(round(wins / len(pnls) * 100, 1) if pnls else 0)
+
+    rolling_wr = []
+    window = 10
+    for i in range(len(labels)):
+        wr_vals = daily_wr[max(0, i - window + 1):i + 1]
+        rolling_wr.append(round(sum(wr_vals) / len(wr_vals), 1) if wr_vals else 0)
+
+    return jsonify({
+        "labels": labels,
+        "equity": equity,
+        "daily_pnl": daily_pnl,
+        "rolling_wr": rolling_wr,
+    })

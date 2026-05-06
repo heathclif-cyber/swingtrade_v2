@@ -89,7 +89,10 @@ def trades_export_csv():
     if direction:
         q = q.filter(Trade.direction == direction)
 
-    trades = q.order_by(Trade.opened_at.desc()).limit(5000).all()
+    limit_raw = request.args.get("limit", 5000, type=int)
+    limit = limit_raw if limit_raw > 0 else 100000
+
+    trades = q.order_by(Trade.opened_at.desc()).limit(limit).all()
 
     buf = io.StringIO()
     w = csv.writer(buf)

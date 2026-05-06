@@ -12,18 +12,19 @@ def signals():
     from app.models.signal import Signal
     from app.models.coin import Coin
 
-    page      = request.args.get("page", 1, type=int)
-    symbol    = request.args.get("symbol", "")
-    direction = request.args.get("direction", "")
+    page       = request.args.get("page", 1, type=int)
+    symbol_raw = request.args.get("symbol", "")
+    dir_raw    = request.args.get("direction", "")
+
+    symbols   = [s.strip() for s in symbol_raw.split(",") if s.strip()]
+    directions = [d.strip().upper() for d in dir_raw.split(",") if d.strip()]
 
     q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
                     .options(joinedload(Signal.model_meta))
-    if symbol:
-        q = q.filter(Coin.symbol == symbol)
-    if direction:
-        q = q.filter(Signal.direction == direction)
-    else:
-        q = q.filter(Signal.direction.in_(["LONG", "SHORT"]))
+    if symbols:
+        q = q.filter(Coin.symbol.in_(symbols))
+    if directions:
+        q = q.filter(Signal.direction.in_(directions))
 
     pagination = (
         q.order_by(Signal.signal_time.desc())
@@ -31,13 +32,17 @@ def signals():
     )
 
     coins = Coin.query.filter_by(status="active").order_by(Coin.symbol).all()
+    from app.services.model_registry import load_inference_config
+    cfg = load_inference_config()
+    leverage = float(cfg.get("risk", {}).get("leverage_recommended", 5.0))
 
     return render_template(
         "signals.html",
         pagination  = pagination,
         coins       = coins,
-        symbol      = symbol,
-        direction   = direction,
+        symbols     = symbols,
+        directions  = directions,
+        leverage    = leverage,
     )
 
 
@@ -46,27 +51,35 @@ def signals_export_csv():
     from app.models.signal import Signal
     from app.models.coin import Coin
 
-    symbol    = request.args.get("symbol", "")
-    direction = request.args.get("direction", "")
+    symbol_raw = request.args.get("symbol", "")
+    dir_raw    = request.args.get("direction", "")
+
+    symbols   = [s.strip() for s in symbol_raw.split(",") if s.strip()]
+    directions = [d.strip().upper() for d in dir_raw.split(",") if d.strip()]
 
     q = Signal.query.join(Coin, Signal.coin_id == Coin.id) \
                     .options(joinedload(Signal.model_meta))
-    if symbol:
-        q = q.filter(Coin.symbol == symbol)
-    if direction:
-        q = q.filter(Signal.direction == direction)
-    else:
-        q = q.filter(Signal.direction.in_(["LONG", "SHORT"]))
+    if symbols:
+        q = q.filter(Coin.symbol.in_(symbols))
+    if directions:
+        q = q.filter(Signal.direction.in_(directions))
 
-    signals = q.order_by(Signal.signal_time.desc()).limit(5000).all()
+    limit_raw = request.args.get("limit", 5000, type=int)
+    limit = limit_raw if limit_raw > 0 else 100000
+
+    signals = q.order_by(Signal.signal_time.desc()).limit(limit).all()
+
+    from app.services.model_registry import load_inference_config
+    cfg = load_inference_config()
+    lev = float(cfg.get("risk", {}).get("leverage_recommended", 5.0))
 
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Time", "Coin", "Direction", "Confidence", "Model", "Entry", "TP", "TP%", "SL", "SL%", "ATR", "H4 High", "H4 Low"])
     for s in signals:
         e = s.entry_price
-        tp_pct = f"{abs(s.tp_price - e) / e * 100:.1f}" if s.tp_price and e else ""
-        sl_pct = f"{abs(s.sl_price - e) / e * 100:.1f}" if s.sl_price and e else ""
+        tp_pct = f"{abs(s.tp_price - e) / e * 100 * lev:.1f}" if s.tp_price and e else ""
+        sl_pct = f"{abs(s.sl_price - e) / e * 100 * lev:.1f}" if s.sl_price and e else ""
         w.writerow([
             s.signal_time.strftime("%Y-%m-%d %H:%M") if s.signal_time else "",
             s.coin.symbol,
@@ -99,9 +112,13 @@ def signal_detail(signal_id: int):
         except Exception:
             pass
 
+    from app.services.model_registry import load_inference_config
+    cfg = load_inference_config()
+    lev = float(cfg.get("risk", {}).get("leverage_recommended", 5.0))
+
     entry = s.entry_price
-    tp_pct = round(abs(s.tp_price - entry) / entry * 100, 2) if s.tp_price and entry else None
-    sl_pct = round(abs(s.sl_price - entry) / entry * 100, 2) if s.sl_price and entry else None
+    tp_pct = round(abs(s.tp_price - entry) / entry * 100 * lev, 2) if s.tp_price and entry else None
+    sl_pct = round(abs(s.sl_price - entry) / entry * 100 * lev, 2) if s.sl_price and entry else None
 
     return jsonify({
         "id":            s.id,

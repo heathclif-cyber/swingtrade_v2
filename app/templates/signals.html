@@ -2,15 +2,26 @@
 {% block title %}Signals{% endblock %}
 {% block content %}
 
+{% set csv_base = '/paper/signals/export.csv?symbol=' + (symbols|join(',') if symbols else '') + '&direction=' + (directions|join(',') if directions else '') %}
+
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-xl font-bold">Signals</h1>
   <div class="flex items-center gap-2">
     <span class="text-xs text-gray-500">{{ pagination.total }} total</span>
-    <button onclick="copyCSV(this, '/paper/signals/export.csv?symbol={{ symbol }}&direction={{ direction }}')"
-       class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
-      📋 Copy CSV
-    </button>
-    <a href="/paper/signals/export.csv?symbol={{ symbol }}&direction={{ direction }}"
+    <div class="relative inline-block" id="csvDropdown">
+      <button onclick="toggleCSVDropdown()"
+         class="text-xs text-green-400 border border-green-800 rounded px-3 py-1 hover:bg-green-900/30">
+        📋 Copy CSV ▼
+      </button>
+      <div id="csvMenu" class="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 hidden min-w-[130px]">
+        <button onclick="copyCSV(50)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 50 baris</button>
+        <button onclick="copyCSV(100)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 100 baris</button>
+        <button onclick="copyCSV(200)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 200 baris</button>
+        <button onclick="copyCSV(400)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 400 baris</button>
+        <button onclick="copyCSV(0)" class="block w-full text-left px-4 py-2 text-xs hover:bg-gray-700 text-gray-300">📋 Semua</button>
+      </div>
+    </div>
+    <a href="{{ csv_base }}"
        class="text-xs text-blue-400 border border-blue-800 rounded px-3 py-1 hover:bg-blue-900/30">
       ⬇ Download
     </a>
@@ -18,22 +29,59 @@
 </div>
 
 <!-- Filter Bar -->
-<form method="GET" class="flex flex-wrap gap-3 mb-4">
-  <select name="symbol" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
-    <option value="">Semua Coin</option>
-    {% for c in coins %}
-    <option value="{{ c.symbol }}" {% if c.symbol == symbol %}selected{% endif %}>{{ c.symbol }}</option>
-    {% endfor %}
-  </select>
-  <select name="direction" class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm">
-    <option value="">Semua Arah</option>
-    <option value="LONG"  {% if direction == 'LONG'  %}selected{% endif %}>LONG</option>
-    <option value="SHORT" {% if direction == 'SHORT' %}selected{% endif %}>SHORT</option>
-    <option value="FLAT"  {% if direction == 'FLAT'  %}selected{% endif %}>FLAT</option>
-  </select>
-  <button type="submit" class="bg-blue-700 hover:bg-blue-600 rounded px-4 py-1.5 text-sm">Filter</button>
+<div class="flex flex-wrap gap-3 mb-4 items-center">
+  <!-- Coin multi-select -->
+  <div class="relative" id="coinDropdown">
+    <button type="button" onclick="toggleDropdown('coinDropdown')"
+       class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm min-w-[160px] text-left flex items-center justify-between gap-2"
+       id="coinBtn">
+      <span class="truncate">
+        {% if symbols|length == 0 or symbols|length == coins|length %}Semua Coin
+        {% elif symbols|length == 1 %}{{ symbols[0] }}
+        {% else %}{{ symbols|length }} coin
+        {% endif %}
+      </span>
+      <span class="text-gray-500 text-xs">▼</span>
+    </button>
+    <div class="absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 hidden w-56 max-h-64 overflow-y-auto" id="coinMenu">
+      {% for c in coins %}
+      <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-700 cursor-pointer text-sm">
+        <input type="checkbox" value="{{ c.symbol }}" class="coin-cb bg-gray-700 rounded"
+               {% if c.symbol in symbols %}checked{% endif %}
+               onchange="applyFilter()">
+        <span class="text-gray-300 font-mono text-xs">{{ c.symbol }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Direction multi-select -->
+  <div class="relative" id="dirDropdown">
+    <button type="button" onclick="toggleDropdown('dirDropdown')"
+       class="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm min-w-[140px] text-left flex items-center justify-between gap-2"
+       id="dirBtn">
+      <span class="truncate">
+        {% if directions|length == 0 or directions|length == 3 %}Semua Arah
+        {% elif directions|length == 1 %}{{ directions[0] }}
+        {% else %}{{ directions|length }} arah
+        {% endif %}
+      </span>
+      <span class="text-gray-500 text-xs">▼</span>
+    </button>
+    <div class="absolute top-full mt-1 left-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 hidden w-40" id="dirMenu">
+      {% for d in ['LONG','SHORT','FLAT'] %}
+      <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-700 cursor-pointer text-sm">
+        <input type="checkbox" value="{{ d }}" class="dir-cb bg-gray-700 rounded"
+               {% if d in directions %}checked{% endif %}
+               onchange="applyFilter()">
+        <span class="{% if d == 'LONG' %}text-green-400{% elif d == 'SHORT' %}text-red-400{% else %}text-gray-400{% endif %} text-xs font-medium">{{ d }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
   <a href="/paper/signals" class="text-gray-500 hover:text-gray-300 text-sm py-1.5">Reset</a>
-</form>
+</div>
 
 <div class="bg-gray-900 rounded-lg border border-gray-800">
   <table class="w-full">
@@ -85,9 +133,9 @@
         <td class="px-4 py-2 text-right text-xs text-green-300">
           {% if sig.tp_price and sig.entry_price %}
             {% if sig.direction == 'LONG' %}
-              +{{ '%.1f' | format((sig.tp_price - sig.entry_price) / sig.entry_price * 100) }}%
+              +{{ '%.1f' | format((sig.tp_price - sig.entry_price) / sig.entry_price * 100 * leverage) }}%
             {% else %}
-              +{{ '%.1f' | format((sig.entry_price - sig.tp_price) / sig.entry_price * 100) }}%
+              +{{ '%.1f' | format((sig.entry_price - sig.tp_price) / sig.entry_price * 100 * leverage) }}%
             {% endif %}
           {% else %}—{% endif %}
         </td>
@@ -97,9 +145,9 @@
         <td class="px-4 py-2 text-right text-xs text-red-300">
           {% if sig.sl_price and sig.entry_price %}
             {% if sig.direction == 'LONG' %}
-              {{ '%.1f' | format((sig.sl_price - sig.entry_price) / sig.entry_price * 100) }}%
+              {{ '%.1f' | format((sig.sl_price - sig.entry_price) / sig.entry_price * 100 * leverage) }}%
             {% else %}
-              {{ '%.1f' | format((sig.entry_price - sig.sl_price) / sig.entry_price * 100) }}%
+              {{ '%.1f' | format((sig.entry_price - sig.sl_price) / sig.entry_price * 100 * leverage) }}%
             {% endif %}
           {% else %}—{% endif %}
         </td>
@@ -122,34 +170,86 @@
   </table>
 </div>
 
+{% set filter_qs = 'symbol=' + (symbols|join(',') if symbols else '') + '&direction=' + (directions|join(',') if directions else '') %}
+
 <!-- Pagination -->
 {% if pagination.pages > 1 %}
 <div class="flex gap-2 mt-4 justify-center text-sm">
   {% if pagination.has_prev %}
-  <a href="?page={{ pagination.prev_num }}&symbol={{ symbol }}&direction={{ direction }}"
+  <a href="?page={{ pagination.prev_num }}&{{ filter_qs }}"
      class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Prev</a>
   {% endif %}
   <span class="px-3 py-1 text-gray-500">{{ pagination.page }} / {{ pagination.pages }}</span>
   {% if pagination.has_next %}
-  <a href="?page={{ pagination.next_num }}&symbol={{ symbol }}&direction={{ direction }}"
+  <a href="?page={{ pagination.next_num }}&{{ filter_qs }}"
      class="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700">Next</a>
   {% endif %}
 </div>
 {% endif %}
 
 <script>
-async function copyCSV(btn, url) {
+var csvBaseUrl = '{{ csv_base }}';
+
+// Close CSV dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('csvDropdown');
+  if (dd && !dd.contains(e.target)) {
+    document.getElementById('csvMenu').classList.add('hidden');
+  }
+  // Close coin/direction dropdowns
+  document.querySelectorAll('[id$="Dropdown"]').forEach(function(el) {
+    if (el.id !== 'csvDropdown' && !el.contains(e.target)) {
+      el.querySelector('[id$="Menu"]').classList.add('hidden');
+    }
+  });
+});
+
+function toggleCSVDropdown() {
+  document.getElementById('csvMenu').classList.toggle('hidden');
+}
+
+async function copyCSV(limit) {
+  var url = csvBaseUrl + '&limit=' + limit;
   try {
-    const resp = await fetch(url);
-    const text = await resp.text();
+    var resp = await fetch(url);
+    var text = await resp.text();
     await navigator.clipboard.writeText(text);
-    const orig = btn.textContent;
+    var btn = document.querySelector('#csvDropdown button');
     btn.textContent = '✅ Copied!';
-    setTimeout(() => btn.textContent = orig, 2000);
+    setTimeout(function() { btn.textContent = '📋 Copy CSV ▼'; }, 2000);
+    document.getElementById('csvMenu').classList.add('hidden');
   } catch (e) {
     alert('Gagal copy CSV: ' + e.message);
   }
 }
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('[id$="Dropdown"]').forEach(function(dd) {
+    if (!dd.contains(e.target)) {
+      dd.querySelector('[id$="Menu"]').classList.add('hidden');
+    }
+  });
+});
+
+function toggleDropdown(id) {
+  var menu = document.getElementById(id.replace('Dropdown','Menu'));
+  // Close all others first
+  document.querySelectorAll('[id$="Menu"]').forEach(function(m) {
+    if (m !== menu) m.classList.add('hidden');
+  });
+  menu.classList.toggle('hidden');
+}
+
+function applyFilter() {
+  var coins = [];
+  document.querySelectorAll('.coin-cb:checked').forEach(function(cb) { coins.push(cb.value); });
+  var dirs = [];
+  document.querySelectorAll('.dir-cb:checked').forEach(function(cb) { dirs.push(cb.value); });
+  var qs = '?symbol=' + coins.join(',') + '&direction=' + dirs.join(',');
+  window.location.search = qs;
+}
+
 </script>
 
 {% endblock %}

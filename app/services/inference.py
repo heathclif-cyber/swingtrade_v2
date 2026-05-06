@@ -237,15 +237,15 @@ class InferenceService:
         """Stage 1: LGBM scout (1 bar, cepat) → Stage 2: LSTM konfirmator (32 bar, dalam).
 
         Threshold cascade (dari config):
-          scout_flat_threshold  — LGBM FLAT confidence untuk skip LSTM
-          scout_signal_threshold — LGBM LONG/SHORT confidence minimum untuk lanjut ke LSTM
-          confirmer_threshold    — LSTM confidence minimum untuk konfirmasi sinyal
+          scout_flat_threshold   — LGBM FLAT confidence untuk skip LSTM (default 0.85)
+          scout_signal_threshold — LGBM LONG/SHORT confidence minimum untuk lanjut LSTM (default 0.55)
+          confirmer_threshold    — LSTM confidence minimum untuk konfirmasi sinyal (default 0.65)
 
         Kalau LGBM tidak yakin (conf < scout_signal_threshold) → FLAT.
         Kalau LSTM tidak konfirmasi (conf < confirmer_threshold) → FLAT.
         """
         cascade_cfg = self._config.get("cascade", {})
-        scout_flat_threshold   = cascade_cfg.get("scout_flat_threshold", 0.6)
+        scout_flat_threshold   = cascade_cfg.get("scout_flat_threshold", 0.85)
         scout_signal_threshold = cascade_cfg.get("scout_signal_threshold", 0.55)
         confirmer_threshold    = cascade_cfg.get("confirmer_threshold", 0.65)
 

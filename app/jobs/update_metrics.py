@@ -38,12 +38,14 @@ def _refresh_performance_summary() -> None:
     from app.models.performance_summary import PerformanceSummary
     import numpy as np
 
+    now_utc = datetime.now(timezone.utc)
     coins = Coin.query.filter_by(status="active").all()
+    inserted = 0
 
     for coin in coins:
         for period, days in PERIODS.items():
             cutoff = (
-                datetime.now(timezone.utc) - timedelta(days=days)
+                now_utc - timedelta(days=days)
                 if days else None
             )
             q = Trade.query.filter_by(coin_id=coin.id, status="closed")
@@ -82,27 +84,66 @@ def _refresh_performance_summary() -> None:
             dd     = peak - equity
             max_dd = float(dd.max()) if len(dd) > 0 else 0.0
 
-            summary = PerformanceSummary.query.filter_by(
-                coin_id=coin.id, period=period
-            ).first()
-
-            if not summary:
-                summary = PerformanceSummary(coin_id=coin.id, period=period)
-                db.session.add(summary)
-
-            summary.total_trades  = n
-            summary.win_count     = win_cnt
-            summary.loss_count    = loss_cnt
-            summary.win_rate      = round(wr, 4)
-            summary.total_pnl     = round(total_pnl, 4)
-            summary.avg_pnl       = round(avg_pnl, 4)
-            summary.profit_factor = round(pf, 4)
-            summary.sharpe_ratio  = round(sharpe, 4)
-            summary.max_drawdown  = round(max_dd, 4)
-            summary.updated_at    = utcnow()
+            # Selalu insert baris baru — history, bukan overwrite
+            summary = PerformanceSummary(
+                coin_id=coin.id,
+                period=period,
+                snapshot_at=now_utc,
+                total_trades=n,
+                win_count=win_cnt,
+                loss_count=loss_cnt,
+                win_rate=round(wr, 4),
+                total_pnl=round(total_pnl, 4),
+                avg_pnl=round(avg_pnl, 4),
+                profit_factor=round(pf, 4),
+                sharpe_ratio=round(sharpe, 4),
+                max_drawdown=round(max_dd, 4),
+            )
+            db.session.add(summary)
+            inserted += 1
 
     db.session.commit()
-    logger.info("[update_metrics] performance_summary diperbarui")
+
+    # Cleanup: hanya simpan 1 snapshot per hari per coin per period
+    # (Hapus yang ada jam sama dengan snapshot lain di hari yang sama, simpan terbaru)
+    keep = (
+        db.session.query(
+            PerformanceSummary.coin_id,
+            PerformanceSummary.period,
+            db.func.date(PerformanceSummary.snapshot_at).label("day"),
+            db.func.max(PerformanceSummary.id).label("max_id"),
+        )
+        .group_by(
+            PerformanceSummary.coin_id,
+            PerformanceSummary.period,
+            db.func.date(PerformanceSummary.snapshot_at),
+        )
+        .subquery()
+    )
+    deleted = (
+        db.session.query(PerformanceSummary)
+        .join(keep, PerformanceSummary.coin_id == keep.c.coin_id)
+        .filter(
+            PerformanceSummary.period == keep.c.period,
+            db.func.date(PerformanceSummary.snapshot_at) == keep.c.day,
+            PerformanceSummary.id != keep.c.max_id,
+        )
+        .delete(synchronize_session=False)
+    )
+    db.session.commit()
+    if deleted:
+        logger.info(f"[update_metrics] Cleanup {deleted} snapshot duplikat per hari")
+
+    # Hapus snapshot lebih dari 90 hari
+    old_cutoff = now_utc - timedelta(days=90)
+    old = PerformanceSummary.query.filter(
+        PerformanceSummary.snapshot_at < old_cutoff
+    ).delete()
+    db.session.commit()
+    if old:
+        logger.info(f"[update_metrics] Cleanup {old} snapshot > 90 hari")
+
+    logger.info(f"[update_metrics] performance_summary: {inserted} snapshot baru")
 
 
 def _scan_new_models() -> None:

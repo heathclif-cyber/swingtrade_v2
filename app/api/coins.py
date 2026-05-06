@@ -171,9 +171,65 @@ def coin_detail(symbol: str):
     sel = ModelSelection.query.filter_by(coin_id=coin.id).first()
     meta = ModelMeta.query.get(sel.model_meta_id) if sel else None
 
+    # Performance snapshot history — 14 baris terakhir untuk trend
+    from app.models.performance_summary import PerformanceSummary
+    snap_history = (
+        PerformanceSummary.query
+        .filter_by(coin_id=coin.id, period="30d")
+        .order_by(PerformanceSummary.snapshot_at.desc())
+        .limit(14).all()
+    )
+
     return render_template(
         "coin_detail.html",
         coin=coin, signals=signals, open_trade=open_trade,
         recent_trades=recent_trades, perf=perf, meta=meta,
-        sel=sel,
+        sel=sel, snap_history=snap_history,
     )
+
+
+@bp.get("/api/equity-curve/<symbol>")
+def api_equity_curve_coin(symbol: str):
+    """Return daily equity curve data untuk Chart.js — per koin."""
+    from datetime import timedelta
+    from collections import defaultdict
+    import numpy as np
+    from app.extensions import db, utcnow
+    from app.models.trade import Trade
+    from app.models.coin import Coin
+
+    coin = Coin.query.filter_by(symbol=symbol).first_or_404()
+
+    days = 60
+    cutoff = utcnow() - timedelta(days=days)
+    trades = (
+        Trade.query.filter_by(coin_id=coin.id, status="closed")
+        .filter(Trade.closed_at >= cutoff)
+        .order_by(Trade.closed_at)
+        .all()
+    )
+
+    daily = defaultdict(list)
+    for t in trades:
+        day = t.closed_at.strftime("%m-%d")
+        daily[day].append(t.pnl_net or 0)
+
+    # Fill all days in range
+    labels = []
+    for i in range(days - 1, -1, -1):
+        d = (utcnow() - timedelta(days=i)).strftime("%m-%d")
+        labels.append(d)
+
+    daily_pnl = [sum(daily.get(d, [0])) for d in labels]
+    equity = np.cumsum(daily_pnl).tolist()
+
+    # Drawdown
+    peak = np.maximum.accumulate(equity)
+    drawdown = [round((p - e) * 100 / (p + 0.01), 1) for p, e in zip(peak, equity)]
+
+    return jsonify({
+        "labels": labels,
+        "equity": equity,
+        "daily_pnl": daily_pnl,
+        "drawdown_pct": drawdown,
+    })

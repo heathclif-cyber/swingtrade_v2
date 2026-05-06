@@ -6,6 +6,7 @@
   <title>{% block title %}Trading Assistant{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
   <style>
     .badge-long  { @apply bg-green-900 text-green-300; }
     .badge-short { @apply bg-red-900   text-red-300;   }
@@ -27,7 +28,7 @@
     </span>
   </nav>
 
-  <main class="px-6 py-6 max-w-7xl mx-auto">
+  <main class="px-4 py-6 max-w-[1400px] mx-auto">
     {% block content %}{% endblock %}
   </main>
 

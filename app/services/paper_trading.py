@@ -36,6 +36,11 @@ class PaperTradingEngine:
         self._modal_per_trade       = float(os.getenv("PAPER_MODAL")    or risk.get("modal_per_trade", 100.0))
         self._leverage              = float(os.getenv("PAPER_LEVERAGE") or risk.get("leverage_recommended", 5.0))
         self._fee_per_side          = risk.get("fee_per_side", 0.0004)
+        cooldown = self._config.get("cooldown", {})
+        self._cooldown_time_exit_hrs  = cooldown.get("time_exit_hours", 2)
+        self._cooldown_sl_hit_hrs     = cooldown.get("sl_hit_hours", 4)
+        self._cooldown_tp_hit_hrs     = cooldown.get("tp_hit_hours", 2)
+        self._cooldown_default_hrs    = cooldown.get("default_hours", 4)
         self._vcb_enabled           = vcb.get("enabled", True)
         self._vcb_lookback_bars     = vcb.get("lookback_bars", 24)
         self._vcb_atr_multiplier    = vcb.get("atr_multiplier", 2.5)
@@ -70,26 +75,31 @@ class PaperTradingEngine:
         if direction not in ("LONG", "SHORT"):
             return None
 
-        # ── 3. VCB (Volatility Circuit Breaker) ───────────────────────────────
+        # ── 3. Cooldown: cek trade terakhir arah sama ─────────────────────────
+        if self._is_cooldown_active(coin_id, direction):
+            logger.info(f"[PT] Skip: cooldown aktif untuk {direction} coin_id={coin_id}")
+            return None
+
+        # ── 4. VCB (Volatility Circuit Breaker) ───────────────────────────────
         if self._vcb_enabled and features_df is not None:
             if self._circuit_breaker_active(features_df):
                 logger.info(f"[PT] Skip: VCB aktif coin_id={coin_id}")
                 return None
 
-        # ── 4. Sudah ada open position untuk coin ini ─────────────────────────
+        # ── 5. Sudah ada open position untuk coin ini ─────────────────────────
         existing = Trade.query.filter_by(coin_id=coin_id, status="open").first()
         if existing:
             logger.debug(f"[PT] Skip: sudah ada open trade coin_id={coin_id}")
             return None
 
-        # ── 5. Hitung TP/SL ───────────────────────────────────────────────────
+        # ── 6. Hitung TP/SL ───────────────────────────────────────────────────
         last_row = features_df.iloc[-1] if features_df is not None else None
         tp, sl = self._calculate_tp_sl(direction, entry_price, atr, last_row)
         if tp is None or sl is None:
             logger.warning(f"[PT] Skip: TP/SL tidak valid coin_id={coin_id}")
             return None
 
-        # ── 6. Tiered position sizing by confidence ────────────────────────────
+        # ── 7. Tiered position sizing by confidence ────────────────────────────
         confidence = signal_row.confidence or 0.0
         sizing_factor = 0.0  # Default: skip
         if confidence > (self._config.get("inference", {}).get("confidence_full_size", 0.75)):
@@ -105,7 +115,7 @@ class PaperTradingEngine:
         lev   = self._leverage
         fee   = 2 * self._fee_per_side * self._modal_per_trade  # fee tetap dari modal penuh
 
-        # ── 7. Buka trade ──────────────────────────────────────────────────────
+        # ── 8. Buka trade ──────────────────────────────────────────────────────
 
         sh_val = last_row.get("h4_swing_high") if last_row is not None else None
         sl_val = last_row.get("h4_swing_low") if last_row is not None else None
@@ -221,10 +231,24 @@ class PaperTradingEngine:
         atr: float,
         last_row,
     ) -> tuple[Optional[float], Optional[float]]:
-        """Swing-based TP/SL dengan minimum distance enforcement."""
-        tp = sl = None
+        """Swing-based TP/SL dengan ATR sebagai floor.
 
-        # Stage 1: swing-based
+        Ketika H4 sideways (swing level terlalu dekat), ATR mengambil alih.
+        Ketika H4 trending (swing leg lebar), swing tetap dipakai.
+        """
+        # Hitung ATR-based dulu sebagai floor
+        atr_tp = atr_sl = None
+        if atr > 0:
+            tp_mult = self._fallback.get("tp_atr_mult", 2.0)
+            sl_mult = self._fallback.get("sl_atr_mult", 1.5)
+            if direction == "LONG":
+                atr_tp = entry + tp_mult * atr
+                atr_sl = entry - sl_mult * atr
+            else:
+                atr_tp = entry - tp_mult * atr
+                atr_sl = entry + sl_mult * atr
+
+        # Coba swing-based — pakai jika lebih lebar dari ATR
         if last_row is not None and atr > 0:
             sh_val = last_row.get("h4_swing_high")
             sl_val = last_row.get("h4_swing_low")
@@ -232,46 +256,16 @@ class PaperTradingEngine:
             sl_lvl = float(sl_val) if sl_val is not None and not math.isnan(sl_val) else 0.0
 
             if direction == "LONG" and sh > entry and sl_lvl < entry:
-                tp, sl = sh, sl_lvl
-            elif direction == "SHORT" and sl_lvl < entry and sh > entry:
-                tp, sl = sl_lvl, sh
+                # TP: ambil yang lebih tinggi (jauh), SL: ambil yang lebih rendah (jauh)
+                return (max(sh, atr_tp), min(sl_lvl, atr_sl))
+            if direction == "SHORT" and sl_lvl < entry and sh > entry:
+                # TP: ambil yang lebih rendah (jauh), SL: ambil yang lebih tinggi (jauh)
+                return (min(sl_lvl, atr_tp), max(sh, atr_sl))
 
-        # Stage 2: ATR fallback jika swing tidak tersedia
-        if tp is None or sl is None:
-            if atr <= 0:
-                return None, None
-            tp_mult = self._fallback.get("tp_atr_mult", 3.0)
-            sl_mult = self._fallback.get("sl_atr_mult", 1.5)
-            if direction == "LONG":
-                tp, sl = entry + tp_mult * atr, entry - sl_mult * atr
-            else:
-                tp, sl = entry - tp_mult * atr, entry + sl_mult * atr
-
-        # Stage 3: enforce minimum distance dari entry
-        sl_cfg = self._config.get("tp_sl", {})
-        min_tp_pct = sl_cfg.get("min_tp_pct", 2.0) / 100.0
-        min_sl_pct = sl_cfg.get("min_sl_pct", 1.5) / 100.0
-
-        if direction == "LONG":
-            min_tp = entry * (1.0 + min_tp_pct)
-            max_sl = entry * (1.0 - min_sl_pct)
-            if tp < min_tp:
-                logger.debug(f"[PT] TP terlalu dekat ({tp:.6f} < {min_tp:.6f}) → push ke {min_tp:.6f}")
-                tp = min_tp
-            if sl > max_sl:
-                logger.debug(f"[PT] SL terlalu dekat ({sl:.6f} > {max_sl:.6f}) → push ke {max_sl:.6f}")
-                sl = max_sl
-        else:  # SHORT
-            max_tp = entry * (1.0 - min_tp_pct)
-            min_sl = entry * (1.0 + min_sl_pct)
-            if tp > max_tp:
-                logger.debug(f"[PT] TP terlalu dekat ({tp:.6f} > {max_tp:.6f}) → push ke {max_tp:.6f}")
-                tp = max_tp
-            if sl < min_sl:
-                logger.debug(f"[PT] SL terlalu dekat ({sl:.6f} < {min_sl:.6f}) → push ke {min_sl:.6f}")
-                sl = min_sl
-
-        return tp, sl
+        # Fallback murni ATR
+        if atr_tp is None or atr_sl is None:
+            return None, None
+        return atr_tp, atr_sl
 
     # ── Circuit Breaker ───────────────────────────────────────────────────────
 
@@ -287,6 +281,38 @@ class PaperTradingEngine:
             return float(atr_now) > self._vcb_atr_multiplier * float(atr_mean)
         except Exception:
             return False
+
+    # ── Cooldown check ────────────────────────────────────────────────────────
+
+    def _is_cooldown_active(self, coin_id: int, direction: str) -> bool:
+        from datetime import timedelta
+        last = Trade.query.filter(
+            Trade.coin_id   == coin_id,
+            Trade.direction == direction,
+            Trade.status    == "closed",
+        ).order_by(Trade.closed_at.desc()).first()
+
+        if last is None:
+            return False
+
+        reason = last.exit_reason or ""
+        if reason == "tp_hit":
+            hrs = self._cooldown_tp_hit_hrs
+        elif reason == "sl_hit":
+            hrs = self._cooldown_sl_hit_hrs
+        elif reason == "time_exit":
+            hrs = self._cooldown_time_exit_hrs
+        else:
+            hrs = self._cooldown_default_hrs
+
+        cutoff = utcnow() - timedelta(hours=hrs)
+        if last.closed_at >= cutoff:
+            logger.info(
+                f"[PT] Cooldown aktif: coin_id={coin_id} direction={direction} "
+                f"exit_reason={reason} cooldown={hrs}h closed_at={last.closed_at}"
+            )
+            return True
+        return False
 
     # ── PnL calculation ───────────────────────────────────────────────────────
 

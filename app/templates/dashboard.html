@@ -38,6 +38,18 @@
   </div>
 </div>
 
+<!-- Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <h2 class="text-xs text-gray-500 mb-3">Equity Curve (60d)</h2>
+    <div class="h-52"><canvas id="equityChart"></canvas></div>
+  </div>
+  <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
+    <h2 class="text-xs text-gray-500 mb-3">Rolling Win Rate (10-day)</h2>
+    <div class="h-52"><canvas id="wrChart"></canvas></div>
+  </div>
+</div>
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
   <!-- Latest Signals -->
@@ -210,5 +222,83 @@
   <p class="px-4 py-6 text-gray-500 text-center">Belum ada data model</p>
   {% endif %}
 </div>
+
+
+<script>
+(function() {
+  var darkCfg = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#6b7280', font: { size: 10 }, maxTicksLimit: 12 }, grid: { color: '#1f2937' } },
+      y: { ticks: { color: '#6b7280', font: { size: 10 } }, grid: { color: '#1f2937' } }
+    }
+  };
+
+  fetch('/api/equity-curve')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.labels || d.labels.length === 0) return;
+
+      // Equity curve
+      var eqCtx = document.getElementById('equityChart').getContext('2d');
+      new Chart(eqCtx, {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [{
+            data: d.equity,
+            borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.05)',
+            borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3
+          }]
+        },
+        options: Object.assign({}, darkCfg, {
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(ctx) { return ctx.raw != null ? '$' + ctx.raw.toFixed(2) : '$0.00'; }
+              }
+            }
+          }
+        })
+      });
+
+      // Rolling win rate
+      var wrCtx = document.getElementById('wrChart').getContext('2d');
+      new Chart(wrCtx, {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [{
+            data: d.rolling_wr,
+            borderColor: '#60a5fa', borderWidth: 1.5,
+            pointRadius: 0, tension: 0.3
+          }, {
+            data: Array(d.labels.length).fill(50),
+            borderColor: 'rgba(107,114,128,0.3)', borderWidth: 1,
+            borderDash: [4,4], pointRadius: 0
+          }]
+        },
+        options: Object.assign({}, darkCfg, {
+          scales: Object.assign({}, darkCfg.scales, {
+            y: Object.assign({}, darkCfg.scales.y, { min: 0, max: 100,
+              ticks: Object.assign({}, darkCfg.scales.y.ticks, {
+                callback: function(v) { return v + '%'; }
+              })
+            })
+          }),
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(ctx) { return ctx.raw != null ? ctx.raw + '%' : '—'; }
+              }
+            }
+          }
+        })
+      });
+    })
+    .catch(function(e) { console.error('Equity curve fetch error:', e); });
+})();
+</script>
 
 {% endblock %}

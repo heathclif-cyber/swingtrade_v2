@@ -83,6 +83,70 @@
 
 </div>
 
+<!-- Equity Curve Chart -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 p-4 mb-4">
+  <h2 class="text-xs text-gray-500 mb-3">Equity Curve + Drawdown (60d)</h2>
+  <div class="h-64">
+    <canvas id="coinEquityChart"></canvas>
+  </div>
+</div>
+
+<!-- Performance Trend (snapshot history) -->
+{% if snap_history and snap_history|length > 1 %}
+<div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
+  <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Performance Trend (30d)</h2>
+  {% set trend_wr = snap_history[0].win_rate - snap_history[-1].win_rate %}
+  <div class="px-4 py-2 flex items-center gap-4 text-xs text-gray-500">
+    <span>
+      {% if trend_wr > 0.02 %}↗ <span class="text-green-400">membaik</span>
+      {% elif trend_wr < -0.02 %}↘ <span class="text-red-400">menurun</span>
+      {% else %}→ stabil{% endif %}
+    </span>
+    <span>{{ snap_history|length }} snapshot</span>
+  </div>
+  <div class="overflow-x-auto">
+  <table class="w-full">
+    <thead>
+      <tr class="text-gray-500 text-xs border-b border-gray-800">
+        <th class="px-4 py-2 text-left">Date</th>
+        <th class="px-4 py-2 text-right">Trades</th>
+        <th class="px-4 py-2 text-right">Win Rate</th>
+        <th class="px-4 py-2 text-right">PnL ($)</th>
+        <th class="px-4 py-2 text-right">Sharpe</th>
+        <th class="px-4 py-2 text-right">Max DD ($)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for snap in snap_history %}
+      <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+        <td class="px-4 py-2 text-xs text-gray-500">
+          {{ snap.snapshot_at.strftime('%m-%d %H:%M') if snap.snapshot_at else '—' }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs">{{ snap.total_trades or 0 }}</td>
+        <td class="px-4 py-2 text-right text-xs
+          {% if (snap.win_rate or 0) >= 0.65 %}text-green-400
+          {% elif (snap.win_rate or 0) >= 0.5 %}text-yellow-400
+          {% else %}text-red-400{% endif %}">
+          {{ '%.1f' | format((snap.win_rate or 0)*100) }}%
+        </td>
+        <td class="px-4 py-2 text-right text-xs font-mono
+          {% if (snap.total_pnl or 0) >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+          {{ '%+.2f' | format(snap.total_pnl or 0) }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs">
+          {{ '%.2f' | format(snap.sharpe_ratio or 0) }}
+        </td>
+        <td class="px-4 py-2 text-right text-xs text-red-400">
+          {{ '%.2f' | format(snap.max_drawdown or 0) }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Recent Signals -->
 <div class="bg-gray-900 rounded-lg border border-gray-800 mb-6">
   <h2 class="px-4 py-3 font-semibold border-b border-gray-800">Recent Signals</h2>
@@ -174,5 +238,60 @@
   <p class="px-4 py-6 text-gray-500 text-center text-sm">Belum ada trade tertutup</p>
   {% endif %}
 </div>
+
+
+<script>
+(function() {
+  fetch('/api/equity-curve/{{ coin.symbol }}')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.labels || d.labels.length === 0) return;
+
+      var ctx = document.getElementById('coinEquityChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: d.labels,
+          datasets: [
+            {
+              label: 'Equity ($)',
+              data: d.equity,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52,211,153,0.05)',
+              borderWidth: 1.5, fill: true, pointRadius: 0, tension: 0.3,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Drawdown (%)',
+              data: d.drawdown_pct,
+              borderColor: '#f87171',
+              backgroundColor: 'rgba(248,113,113,0.1)',
+              borderWidth: 1, fill: true, pointRadius: 0, tension: 0.3,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#9ca3af', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#6b7280', font: { size: 10 }, maxTicksLimit: 10 }, grid: { color: '#1f2937' } },
+            y: {
+              type: 'linear', position: 'left',
+              ticks: { color: '#34d399', font: { size: 10 }, callback: function(v) { return '$' + v.toFixed(0); } },
+              grid: { color: '#1f2937' }
+            },
+            y1: {
+              type: 'linear', position: 'right',
+              ticks: { color: '#f87171', font: { size: 10 }, callback: function(v) { return v + '%'; } },
+              grid: { display: false }, max: 0
+            }
+          }
+        }
+      });
+    })
+    .catch(function(e) { console.error('Coin equity fetch:', e); });
+})();
+</script>
 
 {% endblock %}
